@@ -1,0 +1,77 @@
+
+<!-- siti: I will refine the Bootstrap to this later; currently it is not showing up on the page but dont worry-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Finder</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+</head>
+<body>
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+            <h1 class="display-4 mb-4">
+                <i class="bi bi-egg-fried text-primary"></i> 
+                Find Recipes
+            </h1>
+            <p class="lead mb-4">
+                Discover budget-friendly and easy-to-cook recipes based on ingredients you have.
+                ((Prices are estimated by Spoonacular's API))
+            </p>
+            
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form action="recipe_section/recipebrowse.html" method="POST">
+                        <div class="input-group input-group-lg">
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="ingredients" 
+                                   placeholder="Enter ingredients (e.g., chicken, rice, soy sauce)" 
+                                   required>
+                            <button class="btn btn-primary" type="submit">
+                                <i class="bi bi-search"></i> Search Recipes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!--if user isnt logged in-->
+                <div class="mt-4">
+                    <p class="text-muted">New here?</p>
+                    <a href="user/user_register.html" class="btn btn-outline-primary btn-lg">
+                        Create Account
+                    </a>
+                </div>
+        </div>
+    </div>
+    
+    <!-- Features Section -->
+    <div class="row mt-5">
+        <div class="col-md-4 text-center mb-4">
+            <i class="bi bi-wallet2 text-primary" style="font-size: 3rem;"></i>
+            <h4 class="mt-3">Budget-Friendly</h4>
+            <p>Meant for students who wish to be more frugal with their eating habits!</p>
+        </div>
+        <div class="col-md-4 text-center mb-4">
+            <i class="bi bi-clock text-primary" style="font-size: 3rem;"></i>
+            <h4 class="mt-3">Quick & Easy</h4>
+            <p>Filter by cooking time, price and calorie count.</p>
+        </div>
+        <div class="col-md-4 text-center mb-4">
+            <i class="bi bi-heart-pulse text-primary" style="font-size: 3rem;"></i>
+            <h4 class="mt-3">Detailed Nutrition Info</h4>
+            <p>View nutrition data of recipes chosen.</p>
+        </div>
+    </div>
+</div>

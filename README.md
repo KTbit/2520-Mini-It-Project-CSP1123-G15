@@ -17,3 +17,4 @@ To set the project up on your personal device:
 - Bootstrap
 - Spoonacular API
 - ReportLab
+
