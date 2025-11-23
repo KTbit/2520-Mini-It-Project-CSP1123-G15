@@ -110,8 +110,6 @@ def search_recipes():
 
 #recipe detail page...saving recipes feature / page....to be added
 
-# admin routes - login, viewing admin dashboard
-
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     if current_user.is_authenticated and current_user.is_admin:
