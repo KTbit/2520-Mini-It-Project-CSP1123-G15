@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< HEAD
     <title>{% block title %}Recipe Finder{% endblock %}</title>
 
     <!-- Bootstrap CSS -->
@@ -117,5 +118,105 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+=======
+    <title>Recipe Finder</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+   <!-- if necessary we can add a custom independent css page for further polishing; not based on Bootstrap; just regular CSS-->
+    
+</head>
+<body>
+    <!-- creating basic nav bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="bi bi-egg-fried"></i> Recipe Finder and Generator
+            </a>
+
+            <!--creating navigation button-->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="recipe_section/recipebrowse.html">Search Recipes</a>
+                    </li>
+                    
+                <!--after user is logged in-->
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('user_dashboard') }}">My Recipes</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-circle"></i> <!-- display the current active user's username..-->
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+
+                               <!-- If current user is admin; create a function that determines if user is admin or not-->
+                                    <li><a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
+                                        <i class="bi bi-shield-lock"></i> Admin Dashboard
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                              <!--for logging out-->
+                                <li><a class="dropdown-item" href="{{ url_for('user_logout') }}">
+                                    <i class="bi bi-box-arrow-right"></i> Logout
+                                </a></li>
+                            </ul>
+                        </li>
+
+                   <!--logging in / registering buttons-->
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('user_login') }}">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link btn btn-outline-light ms-2" href="{{ url_for('user_register') }}">Sign Up</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+    <!-- Flash Messages -->
+            <div class="container mt-3">
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                      <!--If category == success -->
+                            <i class="bi bi-check-circle-fill"></i>
+                            Test
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            Test
+                            <i class="bi bi-info-circle-fill"></i>
+                            Test
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+            </div>
+
+    <!-- Main Content -->
+    <main>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-4 mt-5">
+        <div class="container">
+            <p class="mb-0">&copy; 2025 Mini IT Project | Built with Flask </p>
+            <p class="mb-0">
+                <small>Student project for budget-friendly cooking</small>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+>>>>>>> 65b9ef74ff36e65d62039d53d2ac1714437d849f
 </body>
 </html>
