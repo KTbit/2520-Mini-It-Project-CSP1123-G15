@@ -1,0 +1,59 @@
+{% extends "nav_base.html" %}
+{% block title %}Search Results · Recipe Finder{% endblock %}
+
+{% block content %}
+<h2 class="mb-3">Search Recipes</h2>
+
+<form class="row g-2 mb-4" method="get" action="{{ url_for('recipe_browse') }}">
+  <div class="col-md-9">
+    <input type="text"
+           class="form-control"
+           name="ingredients"
+           placeholder="e.g. egg, tomato, cheese"
+           value="{{ ingredients or '' }}"
+           required>
+  </div>
+  <div class="col-md-3 d-grid d-md-block">
+    <button class="btn btn-primary w-100" type="submit">
+      <i class="bi bi-search"></i> Search
+    </button>
+  </div>
+</form>
+
+{% if ingredients and recipes %}
+  <p class="text-muted">
+    Showing recipes that use: <strong>{{ ingredients }}</strong>
+  </p>
+
+  <div class="row g-3">
+    {% for r in recipes %}
+    <div class="col-md-4">
+      <div class="card h-100">
+        {% if r.image %}
+        <img src="{{ r.image }}" class="card-img-top" alt="{{ r.title }}">
+        {% endif %}
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">{{ r.title }}</h5>
+          <p class="card-text small text-muted">
+            Uses {{ r.usedIngredientCount }} of your ingredients,
+            {{ r.missedIngredientCount }} missing.
+          </p>
+          <a href="{{ url_for('recipe_detail', recipe_id=r.id) }}"
+             class="btn btn-sm btn-outline-primary mt-auto">
+            View Details
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% elif ingredients %}
+  <div class="alert alert-warning">
+    No recipes found for <strong>{{ ingredients }}</strong>. Try different ingredients.
+  </div>
+{% else %}
+  <p class="text-muted">
+    Enter some ingredients above and click <strong>Search</strong> to see recipe suggestions.
+  </p>
+{% endif %}
+{% endblock %}

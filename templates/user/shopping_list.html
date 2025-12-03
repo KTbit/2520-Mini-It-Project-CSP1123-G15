@@ -1,0 +1,52 @@
+{% extends "nav_base.html" %}
+{% block title %}Shopping List · Recipe Finder{% endblock %}
+
+{% block content %}
+<h2 class="mb-3">My Shopping List</h2>
+
+{% if items %}
+  <p class="text-muted">
+    These entries were generated from recipes you added to your shopping list.
+  </p>
+
+  <div class="accordion" id="shoppingListAccordion">
+    {% for item in items %}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="heading{{ item.id }}">
+        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse{{ item.id }}"
+                aria-expanded="{{ 'true' if loop.first else 'false' }}"
+                aria-controls="collapse{{ item.id }}">
+          {{ item.recipe_name }}
+          <span class="ms-3 badge bg-secondary">Recipe #{{ item.recipe_id }}</span>
+        </button>
+      </h2>
+      <div id="collapse{{ item.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+           aria-labelledby="heading{{ item.id }}" data-bs-parent="#shoppingListAccordion">
+        <div class="accordion-body">
+          <ul>
+            {% for ing in item.ingredients() %}
+            <li>{{ ing }}</li>
+            {% endfor %}
+          </ul>
+
+          <form method="post"
+                action="{{ url_for('remove_from_shopping_list', item_id=item.id) }}"
+                class="mt-2">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              Remove from Shopping List
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-muted">
+    Your shopping list is empty. Open a recipe and click
+    <strong>Add to Shopping List</strong> to start collecting ingredients.
+  </p>
+{% endif %}
+{% endblock %}

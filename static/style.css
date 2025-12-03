@@ -1,0 +1,40 @@
+/* Basic layout helpers */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Navbar */
+.navbar-brand {
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+/* Hero section */
+.hero-section {
+    padding: 4rem 0;
+}
+
+.hero-section h1 {
+    font-weight: 700;
+}
+
+/* Cards */
+.card {
+    transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+}
