@@ -1,0 +1,20 @@
+{% extends "nav_base.html" %}
+{% block title %}Admin Login · Recipe Finder{% endblock %}
+
+{% block content %}
+<h2 class="mb-3">Admin Login</h2>
+
+<form method="post" class="row g-3" novalidate>
+  <div class="col-md-6">
+    <label for="username" class="form-label">Admin Username</label>
+    <input type="text" class="form-control" id="username" name="username" required>
+  </div>
+  <div class="col-md-6">
+    <label for="password" class="form-label">Password</label>
+    <input type="password" class="form-control" id="password" name="password" required>
+  </div>
+  <div class="col-12">
+    <button type="submit" class="btn btn-dark">Login as Admin</button>
+  </div>
+</form>
+{% endblock %}

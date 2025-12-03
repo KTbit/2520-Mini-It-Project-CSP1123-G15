@@ -1,0 +1,84 @@
+{% extends "nav_base.html" %}
+{% block title %}{{ recipe.title }} · Recipe Details{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-5 mb-4 mb-lg-0">
+    <div class="card">
+      {% if recipe.image %}
+      <img src="{{ recipe.image }}" class="card-img-top" alt="{{ recipe.title }}">
+      {% endif %}
+      <div class="card-body">
+        <h3 class="card-title">{{ recipe.title }}</h3>
+        <p class="card-text">
+          Ready in {{ recipe.readyInMinutes }} minutes · Serves {{ recipe.servings }}
+        </p>
+
+        {% if current_user.is_authenticated %}
+        <form method="post"
+              action="{% if is_saved %}{{ url_for('unsave_recipe', recipe_id=recipe.id) }}{% else %}{{ url_for('save_recipe', recipe_id=recipe.id) }}{% endif %}">
+          <input type="hidden" name="recipe_name" value="{{ recipe.title }}">
+          {% if is_saved %}
+          <button type="submit" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-heartbreak"></i> Remove from Saved
+          </button>
+          {% else %}
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-heart-fill"></i> Save to Favourites
+          </button>
+          {% endif %}
+        </form>
+
+        <form method="post"
+              action="{{ url_for('add_to_shopping_list', recipe_id=recipe.id) }}"
+              class="mt-2">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-basket-fill"></i> Add to Shopping List
+          </button>
+        </form>
+        {% else %}
+        <p class="text-muted small">
+          <a href="{{ url_for('user_login') }}">Log in</a> to save this recipe or add to your shopping list.
+        </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <h4>Ingredients</h4>
+    <ul>
+      {% for ing in recipe.extendedIngredients %}
+      <li>{{ ing.original }}</li>
+      {% endfor %}
+    </ul>
+
+    <h4>Instructions</h4>
+    {% if recipe.instructions %}
+      <div class="border rounded p-3 bg-white">
+        {{ recipe.instructions|safe }}
+      </div>
+    {% elif recipe.analyzedInstructions and recipe.analyzedInstructions[0].steps %}
+      <ol>
+        {% for step in recipe.analyzedInstructions[0].steps %}
+        <li>{{ step.step }}</li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="text-muted">No step-by-step instructions available.</p>
+    {% endif %}
+
+    {% if recipe.nutrition and recipe.nutrition.nutrients %}
+    <h4 class="mt-4">Key Nutrition</h4>
+    <ul class="list-inline">
+      {% for n in recipe.nutrition.nutrients[:5] %}
+      <li class="list-inline-item me-3">
+        <span class="fw-semibold">{{ n.name }}:</span>
+        {{ n.amount|round }} {{ n.unit }}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

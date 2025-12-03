@@ -1,0 +1,80 @@
+{% extends "nav_base.html" %}
+{% block title %}Home · Recipe Finder{% endblock %}
+
+{% block content %}
+<div class="row align-items-center hero-section">
+  <div class="col-lg-6 mb-4 mb-lg-0">
+    <h1 class="display-5 mb-3">Cook smarter, spend less.</h1>
+    <p class="lead text-muted">
+      Enter the ingredients you already have, and we&apos;ll help you discover
+      budget-friendly recipes perfect for students.
+    </p>
+
+    <form class="mt-4" method="get" action="{{ url_for('recipe_browse') }}">
+      <label for="ingredients" class="form-label fw-semibold">Ingredients you have</label>
+      <div class="input-group input-group-lg mb-2">
+        <input type="text"
+               class="form-control"
+               id="ingredients"
+               name="ingredients"
+               placeholder="e.g. egg, tomato, chicken, rice"
+               required>
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-search"></i> Find Recipes
+        </button>
+      </div>
+      <div class="form-text">
+        Separate ingredients with commas.
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body d-flex align-items-center">
+            <div class="me-3 fs-1 text-primary">
+              <i class="bi bi-piggy-bank-fill"></i>
+            </div>
+            <div>
+              <h5 class="card-title mb-1">Budget-Friendly Choices</h5>
+              <p class="card-text mb-0">
+                Focus on cheap ingredients and simple steps to keep monthly costs low.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="fs-2 text-primary mb-2">
+              <i class="bi bi-clock-fill"></i>
+            </div>
+            <h5 class="card-title">Quick &amp; Easy</h5>
+            <p class="card-text">
+              Great for busy schedules — filter by cooking time and difficulty later.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="fs-2 text-primary mb-2">
+              <i class="bi bi-heart-pulse-fill"></i>
+            </div>
+            <h5 class="card-title">Nutrition at a Glance</h5>
+            <p class="card-text">
+              View calories and macros on the recipe details page.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

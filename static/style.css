@@ -1,0 +1,47 @@
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.hero-section {
+    padding-top: 3.5rem;
+    padding-bottom: 3.5rem;
+}
+
+.card {
+    transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+footer {
+    margin-top: auto;
+}
+
+/* Week 5 polish: refine shopping list & general spacing */
+.accordion-item {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.accordion-button {
+    font-weight: 500;
+}
+
+.accordion-body ul {
+    padding-left: 1.2rem;
+}
