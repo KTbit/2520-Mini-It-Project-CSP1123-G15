@@ -7,8 +7,9 @@ BASE = "https://api.spoonacular.com"
 API_KEY = Config.SPOONACULAR_API_KEY
 
 
+#week 5 - modified utils search recipes by ing function to include filters / categorized searching
 def search_recipes_by_ingredients(ingredients: str, number: int = 10):
-
+    """Search recipes by ingredients and enrich with detailed info."""
     url = "https://api.spoonacular.com/recipes/findByIngredients"
     params = {
         "apiKey": Config.SPOONACULAR_API_KEY,
@@ -17,15 +18,30 @@ def search_recipes_by_ingredients(ingredients: str, number: int = 10):
         "ranking": 1,
         "ignorePantry": True,
     }
-
     try:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
-        return response.json()
+        recipes = response.json()
+        
+        # Enrich each recipe with detailed info (time, price)
+        enriched_recipes = []
+        for recipe in recipes:
+            recipe_id = recipe.get('id')
+            
+            # Check cache first
+            cached = get_recipe_cached(recipe_id)
+            if cached:
+                # Merge cached data into recipe
+                recipe['readyInMinutes'] = cached.get('readyInMinutes', 0)
+                recipe['pricePerServing'] = cached.get('pricePerServing', 0)
+            
+            enriched_recipes.append(recipe)
+        
+        return enriched_recipes
+        
     except requests.exceptions.RequestException as exc:
         print(f"[Spoonacular] Error searching recipes: {exc}")
         return []
-
 
 def get_recipe_details(recipe_id: int):
     url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"

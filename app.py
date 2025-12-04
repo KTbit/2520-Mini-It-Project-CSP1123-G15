@@ -69,19 +69,27 @@ def index():
 @app.route("/recipes/browse")
 def recipe_browse():
     ingredients = request.args.get("ingredients", "", type=str).strip()
-    sort_by = request.args.get("sort", "relevance")  # New: sort parameter
-    max_time = request.args.get("max_time", type=int)  # New: time filter
-    max_price = request.args.get("max_price", type=float)  # New: price filter
+    sort_by = request.args.get("sort", "relevance")
+    max_time = request.args.get("max_time", type=int)
+    max_price = request.args.get("max_price", type=float)
+    diet = request.args.get("diet", "")
     
     recipes = []
 
     if ingredients:
-        # Base search
-        recipes = search_recipes_by_ingredients(ingredients, number=12)
+        # Search recipes
+        recipes = search_recipes_by_ingredients(ingredients, number=20)
+        
+        # Apply time filter
+        if max_time and recipes:
+            recipes = [r for r in recipes if r.get('readyInMinutes', 999) <= max_time]
+        
+        # Apply price filter (pricePerServing is in cents)
+        if max_price and recipes:
+            recipes = [r for r in recipes if r.get('pricePerServing', 9999) <= max_price * 100]
         
         # Apply sorting
         if sort_by == "time_asc" and recipes:
-            # Sort by cooking time (ascending)
             recipes = sorted(recipes, key=lambda r: r.get('readyInMinutes', 999))
         elif sort_by == "time_desc" and recipes:
             recipes = sorted(recipes, key=lambda r: r.get('readyInMinutes', 0), reverse=True)
@@ -89,13 +97,6 @@ def recipe_browse():
             recipes = sorted(recipes, key=lambda r: r.get('pricePerServing', 999))
         elif sort_by == "price_desc" and recipes:
             recipes = sorted(recipes, key=lambda r: r.get('pricePerServing', 0), reverse=True)
-        
-        # Apply filters
-        if max_time and recipes:
-            recipes = [r for r in recipes if r.get('readyInMinutes', 999) <= max_time]
-        
-        if max_price and recipes:
-            recipes = [r for r in recipes if r.get('pricePerServing', 999) <= max_price * 100]  # Convert to cents
 
     return render_template(
         "recipe_section/recipebrowse.html",
@@ -104,8 +105,8 @@ def recipe_browse():
         sort_by=sort_by,
         max_time=max_time,
         max_price=max_price,
+        diet=diet,
     )
-
 
 @app.route("/recipes/<int:recipe_id>")
 def recipe_detail(recipe_id: int):
@@ -264,6 +265,41 @@ def delete_post(post_id):
         abort(403)
     db.session.delete(p); db.session.commit()
     return redirect(url_for('index'))
+
+@app.route('/posts')
+def posts_feed():
+    """Show all posts from users you follow (or all posts for now)"""
+    if current_user.is_authenticated:
+        # Show posts from followed users
+        posts = Post.query.filter(
+            Post.user_id.in_([u.id for u in current_user.followed.all()])
+        ).order_by(Post.created_at.desc()).all()
+    else:
+        # Show all public posts
+        posts = Post.query.order_by(Post.created_at.desc()).limit(20).all()
+    
+    return render_template('posts_feed.html', posts=posts)
+
+
+@app.route('/posts/<int:post_id>')
+def post_view(post_id):
+    """View a single post"""
+    post = Post.query.get_or_404(post_id)
+    recipe = get_recipe_cached(post.spoonacular_id)
+    return render_template('post_view.html', post=post, recipe=recipe)
+
+
+@app.route('/profile/<int:user_id>')
+def profile(user_id):
+    """View a user's profile"""
+    user = User.query.get_or_404(user_id)
+    posts = Post.query.filter_by(user_id=user_id).order_by(Post.created_at.desc()).all()
+    
+    is_following = False
+    if current_user.is_authenticated:
+        is_following = current_user.followed.filter_by(id=user_id).first() is not None
+    
+    return render_template('profile.html', user=user, posts=posts, is_following=is_following)
 
 @app.route('/follow/<int:user_id>', methods=['POST'])
 @login_required
