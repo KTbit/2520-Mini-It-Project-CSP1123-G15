@@ -9,22 +9,23 @@ API_KEY = Config.SPOONACULAR_API_KEY
 
 #week 5 - modified utils search recipes by ing function to include filters / categorized searching
 def search_recipes_by_ingredients(ingredients: str, number: int = 10):
-    """Search recipes by ingredients with complex search endpoint."""
-    # Use complexSearch endpoint which returns MORE data (including time & price!)
-    url = "https://api.spoonacular.com/recipes/complexSearch"
+    """Search recipes by ingredients - SIMPLE VERSION THAT WORKS."""
+    url = "https://api.spoonacular.com/recipes/findByIngredients"
     params = {
         "apiKey": Config.SPOONACULAR_API_KEY,
-        "includeIngredients": ingredients,
-        "addRecipeInformation": True,  # ← This gives us time & price data!
-        "fillIngredients": True,
+        "ingredients": ingredients,
         "number": number,
-        "sort": "max-used-ingredients"  # Prioritize recipes using the ingredients
+        "ranking": 1,
+        "ignorePantry": True,
     }
     try:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
-        data = response.json()
-        return data.get('results', [])  # Returns list of recipes with full info
+        recipes = response.json()
+        
+        print(f"[DEBUG] Found {len(recipes)} recipes for '{ingredients}'")
+        
+        return recipes
         
     except requests.exceptions.RequestException as exc:
         print(f"[Spoonacular] Error searching recipes: {exc}")

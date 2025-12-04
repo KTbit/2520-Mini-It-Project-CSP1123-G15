@@ -28,10 +28,16 @@
           </button>
           {% endif %}
         </form>
-<<<<<<< HEAD
-=======
 
->>>>>>> bf0620d6c9174d11d5f4084d903b57c2eccc9e94
+      <!--week 5 user post button creation-->
+        <form method="post" action="{{ url_for('create_post') }}" style="display:inline;">
+        <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
+        <button type="submit" class="btn btn-success">
+            <i class="bi bi-share"></i> Share as Post
+        </button>
+    </form>
+
+
         <form method="post"
               action="{{ url_for('add_to_shopping_list', recipe_id=recipe.id) }}"
               class="mt-2">
@@ -41,11 +47,7 @@
         </form>
         {% else %}
         <p class="text-muted small">
-<<<<<<< HEAD
-          <a href="{{ url_for('user_login') }}">Log in</a> to save this recipe.
-=======
           <a href="{{ url_for('user_login') }}">Log in</a> to save this recipe or add to your shopping list.
->>>>>>> bf0620d6c9174d11d5f4084d903b57c2eccc9e94
         </p>
         {% endif %}
       </div>
@@ -89,8 +91,5 @@
   </div>
 </div>
 {% endblock %}
-<<<<<<< HEAD
-=======
 
 
->>>>>>> bf0620d6c9174d11d5f4084d903b57c2eccc9e94

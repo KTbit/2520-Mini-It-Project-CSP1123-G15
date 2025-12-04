@@ -62,7 +62,13 @@ with app.app_context():
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    #get recent posts
+    recent_posts = Post.query.order_by(Post.created_at.desc()).limit(6).all()
+
+    #trying to debug
+    print(f"[DEBUG] Passing {len(recent_posts)} posts to homepage")
+
+    return render_template("index.html", recent_posts = recent_posts)
 
 #WEEK 5 - added category filtering based on price and time taken - lowest to highest, vice versa (modified recipebrowse route)
 
@@ -249,13 +255,43 @@ def unsave_recipe(recipe_id: int):
 @app.route('/posts/create', methods=['POST'])
 @login_required
 def create_post():
-    spoonacular_id = request.form['recipe_id']
-    # fetch minimal info from cache or API, then create post
-    recipe = get_recipe_cached(spoonacular_id)
-    post = Post(user_id=current_user.id, spoonacular_id=spoonacular_id,
-                title=recipe['title'], image=recipe.get('image'))
-    db.session.add(post); db.session.commit()
+    recipe_id = request.form.get('recipe_id')  # <-- if not working..change to spoonacular_id
+    
+    if not recipe_id:
+        flash("No recipe specified!", "danger")
+        return redirect(url_for('index'))
+    
+    # Fetch recipe info
+    recipe = get_recipe_cached(int(recipe_id))
+    
+    if not recipe:
+        flash("Could not fetch recipe details!", "danger")
+        return redirect(url_for('index'))
+    
+    # Check if user already posted this recipe
+    existing = Post.query.filter_by(
+        user_id=current_user.id, 
+        spoonacular_id=int(recipe_id)
+    ).first()
+    
+    if existing:
+        flash("You've already shared this recipe!", "info")
+        return redirect(url_for('post_view', post_id=existing.id))
+    
+    # Create post
+    post = Post(
+        user_id=current_user.id, 
+        spoonacular_id=int(recipe_id),
+        title=recipe.get('title', 'Untitled Recipe'), 
+        image=recipe.get('image')
+    )
+    
+    db.session.add(post)
+    db.session.commit()
+    
+    flash("Recipe shared successfully! 🎉", "success")
     return redirect(url_for('post_view', post_id=post.id))
+
 
 @app.route('/posts/<int:post_id>/delete', methods=['POST'])
 @login_required
@@ -299,7 +335,7 @@ def profile(user_id):
     if current_user.is_authenticated:
         is_following = current_user.followed.filter_by(id=user_id).first() is not None
     
-    return render_template('profile.html', user=user, posts=posts, is_following=is_following)
+    return render_template('user/profile.html', user=user, posts=posts, is_following=is_following)
 
 @app.route('/follow/<int:user_id>', methods=['POST'])
 @login_required
@@ -537,6 +573,25 @@ def admin_delete_user(user_id: int):
     flash(f"User '{user.username}' has been deleted.", "success")
     return redirect(url_for('admin_dashboard'))
 
+
+from app import app, db
+from databasemodels import Post 
+
+with app.app_context():
+    posts = Post.query.all()
+    print(f"Total posts in database: {len(posts)}")
+    for post in posts:
+        print(f"-{post.title} by user {post.user_id}")
+
+
+from app import app, db
+from databasemodels import User
+
+with app.app_context():
+    admins = User.query.filter_by(is_admin=True).all()
+    print(f"Found {len(admins)} admin(s):")
+    for admin in admins:
+        print(f"  - {admin.username} ({admin.email})")
 
 # -------------------------------------------------
 # Entry point

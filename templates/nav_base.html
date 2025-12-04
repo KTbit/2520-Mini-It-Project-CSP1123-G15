@@ -59,6 +59,55 @@
         {% endif %}
       </ul>
 
+      <ul class="navbar-nav ms-auto">
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('recipe_browse') }}">Browse Recipes</a>
+    </li>
+    
+    {% if current_user.is_authenticated %}
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" 
+               role="button" data-bs-toggle="dropdown">
+                <i class="bi bi-person-circle"></i> {{ current_user.username }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('profile', user_id=current_user.id) }}">
+                        <i class="bi bi-person"></i> My Profile
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('user_dashboard') }}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('shopping_list') }}">
+                        <i class="bi bi-cart"></i> Shopping List
+                    </a>
+                </li>
+                {% if current_user.is_admin %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
+                            <i class="bi bi-shield-lock"></i> Admin Dashboard
+                        </a>
+                    </li>
+                {% endif %}
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('user_logout') }}">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </li>
+            </ul>
+        </li>
+    {% endif %}
+</ul>
+
       <ul class="navbar-nav">
         {% if current_user.is_authenticated %}
         <li class="nav-item">

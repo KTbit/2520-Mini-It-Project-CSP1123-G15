@@ -1,15 +1,17 @@
 {% extends "nav_base.html" %}
 {% block title %}Home · Recipe Finder{% endblock %}
-
 {% block content %}
+
+<!-- Hero Section -->
 <div class="row align-items-center hero-section">
   <div class="col-lg-6 mb-4 mb-lg-0">
     <h1 class="display-5 mb-3">Cook smarter, spend less.</h1>
     <p class="lead text-muted">
-      Enter the ingredients you already have, and we&apos;ll help you discover
-      budget‑friendly recipes perfect for MMU students.
+      Enter the ingredients you already have, and we'll help you discover
+      budget-friendly recipes perfect for MMU students.
     </p>
-
+    
+    <!-- Search Form -->
     <form class="mt-4" method="get" action="{{ url_for('recipe_browse') }}">
       <label for="ingredients" class="form-label fw-semibold">Ingredients you have</label>
       <div class="input-group input-group-lg mb-2">
@@ -24,11 +26,12 @@
         </button>
       </div>
       <div class="form-text">
-        Separate ingredients with commas. We&apos;ll suggest recipes using as many of them as possible.
+        Separate ingredients with commas. We'll suggest recipes using as many of them as possible.
       </div>
     </form>
   </div>
-
+  
+  <!-- Feature Cards -->
   <div class="col-lg-6">
     <div class="row g-3">
       <div class="col-12">
@@ -38,7 +41,7 @@
               <i class="bi bi-piggy-bank-fill"></i>
             </div>
             <div>
-              <h5 class="card-title mb-1">Budget‑Friendly Choices</h5>
+              <h5 class="card-title mb-1">Budget-Friendly Choices</h5>
               <p class="card-text mb-0">
                 Focus on cheap ingredients and simple steps to keep your monthly food costs under control.
               </p>
@@ -46,7 +49,6 @@
           </div>
         </div>
       </div>
-
       <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
           <div class="card-body">
@@ -55,12 +57,11 @@
             </div>
             <h5 class="card-title">Quick &amp; Easy</h5>
             <p class="card-text">
-              Great for busy schedules &mdash; filter by cooking time and difficulty.
+              Great for busy schedules – filter by cooking time and difficulty.
             </p>
           </div>
         </div>
       </div>
-
       <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
           <div class="card-body">
@@ -69,7 +70,7 @@
             </div>
             <h5 class="card-title">Nutrition at a Glance</h5>
             <p class="card-text">
-              View calories and macros when you open a recipe&apos;s details page.
+              View calories and macros when you open a recipe's details page.
             </p>
           </div>
         </div>
@@ -77,4 +78,66 @@
     </div>
   </div>
 </div>
+
+<!-- Community Posts Section -->
+<div class="row mt-5">
+  <div class="col-12">
+    <h3 class="mb-4">
+      <i class="bi bi-people"></i> Community Recipes
+    </h3>
+    
+    {% if recent_posts %}
+      <!-- Posts exist! -->
+      <div class="row">
+        {% for post in recent_posts %}
+        <div class="col-md-4 mb-4">
+          <div class="card h-100 shadow-sm">
+            {% if post.image %}
+              <img src="{{ post.image }}" class="card-img-top" alt="{{ post.title }}">
+            {% else %}
+              <div class="card-img-top bg-light text-center py-5">
+                <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+              </div>
+            {% endif %}
+            <div class="card-body">
+              <h5 class="card-title">{{ post.title }}</h5>
+              <p class="text-muted small">
+                By <a href="{{ url_for('profile', user_id=post.user_id) }}">
+                  {{ post.author.username }}
+                </a>
+                <br>
+                {{ post.created_at.strftime('%B %d, %Y') if post.created_at else 'Recently' }}
+              </p>
+              <a href="{{ url_for('post_view', post_id=post.id) }}" 
+                 class="btn btn-primary btn-sm">
+                View Recipe
+              </a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      
+      <div class="text-center mt-3">
+        <a href="{{ url_for('posts_feed') }}" class="btn btn-outline-primary">
+          View All Posts
+        </a>
+      </div>
+      
+    {% else %}
+      <!-- No posts yet -->
+      <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> 
+        No community posts yet. Be the first to share a recipe!
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('recipe_browse') }}">Browse recipes</a> and click "Share Post" to contribute!
+        {% else %}
+          <a href="{{ url_for('user_login') }}">Log in</a> to share recipes with the community.
+        {% endif %}
+      </div>
+    {% endif %}
+    
+  </div>
+</div>
+
 {% endblock %}
