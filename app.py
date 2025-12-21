@@ -72,46 +72,56 @@ def index():
 
 #WEEK 5 - added category filtering based on price and time taken - lowest to highest, vice versa (modified recipebrowse route)
 
+# WEEK 7 EDIT : further optimized the code to present clearer recipe search categroy filters. new variable : cuisine
+
 @app.route("/recipes/browse")
 def recipe_browse():
+    """Enhanced recipe browsing with category filters."""
     ingredients = request.args.get("ingredients", "", type=str).strip()
-    sort_by = request.args.get("sort", "relevance")
-    max_time = request.args.get("max_time", type=int)
-    max_price = request.args.get("max_price", type=float)
-    diet = request.args.get("diet", "")
+    
+    # Get filter parameters
+    cuisine = request.args.get("cuisine", "", type=str).strip()
+    diet = request.args.get("diet", "", type=str).strip()
+    meal_type = request.args.get("type", "", type=str).strip()
+    max_time = request.args.get("maxReadyTime", "", type=str).strip()
     
     recipes = []
-
-    if ingredients:
-        # Search recipes
-        recipes = search_recipes_by_ingredients(ingredients, number=20)
-        
-        # Apply time filter
-        if max_time and recipes:
-            recipes = [r for r in recipes if r.get('readyInMinutes', 999) <= max_time]
-        
-        # Apply price filter (pricePerServing is in cents)
-        if max_price and recipes:
-            recipes = [r for r in recipes if r.get('pricePerServing', 9999) <= max_price * 100]
-        
-        # Apply sorting
-        if sort_by == "time_asc" and recipes:
-            recipes = sorted(recipes, key=lambda r: r.get('readyInMinutes', 999))
-        elif sort_by == "time_desc" and recipes:
-            recipes = sorted(recipes, key=lambda r: r.get('readyInMinutes', 0), reverse=True)
-        elif sort_by == "price_asc" and recipes:
-            recipes = sorted(recipes, key=lambda r: r.get('pricePerServing', 999))
-        elif sort_by == "price_desc" and recipes:
-            recipes = sorted(recipes, key=lambda r: r.get('pricePerServing', 0), reverse=True)
-
+    
+    # Build filters dictionary
+    filters = {}
+    if cuisine:
+        filters['cuisine'] = cuisine
+    if diet:
+        filters['diet'] = diet
+    if meal_type:
+        filters['type'] = meal_type
+    if max_time:
+        try:
+            filters['maxReadyTime'] = int(max_time)
+        except ValueError:
+            pass
+    
+    # Search with ingredients and/or filters
+    if ingredients or filters:
+        recipes = search_recipes_by_ingredients(
+            ingredients if ingredients else "",
+            number=12,
+            **filters
+        )
+    
+    # Prepare active filters for display
+    active_filters = {
+        'ingredients': ingredients,
+        'cuisine': cuisine,
+        'diet': diet,
+        'type': meal_type,
+        'maxReadyTime': max_time,
+    }
+    
     return render_template(
         "recipe_section/recipebrowse.html",
-        ingredients=ingredients,
         recipes=recipes,
-        sort_by=sort_by,
-        max_time=max_time,
-        max_price=max_price,
-        diet=diet,
+        active_filters=active_filters,
     )
 
 @app.route("/recipes/<int:recipe_id>")
