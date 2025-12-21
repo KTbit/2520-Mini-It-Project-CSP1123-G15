@@ -1,17 +1,15 @@
 {% extends "nav_base.html" %}
 {% block title %}Home · Recipe Finder{% endblock %}
-{% block content %}
 
-<!-- Hero Section -->
+{% block content %}
 <div class="row align-items-center hero-section">
   <div class="col-lg-6 mb-4 mb-lg-0">
     <h1 class="display-5 mb-3">Cook smarter, spend less.</h1>
     <p class="lead text-muted">
       Enter the ingredients you already have, and we'll help you discover
-      budget-friendly recipes perfect for MMU students.
+      budget-friendly recipes perfect for students.
     </p>
-    
-    <!-- Search Form -->
+
     <form class="mt-4" method="get" action="{{ url_for('recipe_browse') }}">
       <label for="ingredients" class="form-label fw-semibold">Ingredients you have</label>
       <div class="input-group input-group-lg mb-2">
@@ -26,12 +24,11 @@
         </button>
       </div>
       <div class="form-text">
-        Separate ingredients with commas. We'll suggest recipes using as many of them as possible.
+        Separate ingredients with commas.
       </div>
     </form>
   </div>
-  
-  <!-- Feature Cards -->
+
   <div class="col-lg-6">
     <div class="row g-3">
       <div class="col-12">
@@ -43,12 +40,13 @@
             <div>
               <h5 class="card-title mb-1">Budget-Friendly Choices</h5>
               <p class="card-text mb-0">
-                Focus on cheap ingredients and simple steps to keep your monthly food costs under control.
+                Focus on cheap ingredients and simple steps to keep monthly costs low.
               </p>
             </div>
           </div>
         </div>
       </div>
+
       <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
           <div class="card-body">
@@ -57,11 +55,12 @@
             </div>
             <h5 class="card-title">Quick &amp; Easy</h5>
             <p class="card-text">
-              Great for busy schedules – filter by cooking time and difficulty.
+              Great for busy schedules — filter by cooking time and difficulty later.
             </p>
           </div>
         </div>
       </div>
+
       <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
           <div class="card-body">
@@ -70,7 +69,7 @@
             </div>
             <h5 class="card-title">Nutrition at a Glance</h5>
             <p class="card-text">
-              View calories and macros when you open a recipe's details page.
+              View calories and macros on the recipe details page.
             </p>
           </div>
         </div>
@@ -79,65 +78,179 @@
   </div>
 </div>
 
-<!-- Community Posts Section -->
+<!-- Quick Browse by Category Section -->
 <div class="row mt-5">
   <div class="col-12">
-    <h3 class="mb-4">
-      <i class="bi bi-people"></i> Community Recipes
-    </h3>
-    
-    {% if recent_posts %}
-      <!-- Posts exist! -->
-      <div class="row">
-        {% for post in recent_posts %}
-        <div class="col-md-4 mb-4">
-          <div class="card h-100 shadow-sm">
-            {% if post.image %}
-              <img src="{{ post.image }}" class="card-img-top" alt="{{ post.title }}">
-            {% else %}
-              <div class="card-img-top bg-light text-center py-5">
-                <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
-              </div>
-            {% endif %}
-            <div class="card-body">
-              <h5 class="card-title">{{ post.title }}</h5>
-              <p class="text-muted small">
-                By <a href="{{ url_for('profile', user_id=post.user_id) }}">
-                  {{ post.author.username }}
-                </a>
-                <br>
-                {{ post.created_at.strftime('%B %d, %Y') if post.created_at else 'Recently' }}
-              </p>
-              <a href="{{ url_for('post_view', post_id=post.id) }}" 
-                 class="btn btn-primary btn-sm">
-                View Recipe
-              </a>
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      
-      <div class="text-center mt-3">
-        <a href="{{ url_for('posts_feed') }}" class="btn btn-outline-primary">
-          View All Posts
-        </a>
-      </div>
-      
-    {% else %}
-      <!-- No posts yet -->
-      <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i> 
-        No community posts yet. Be the first to share a recipe!
-        {% if current_user.is_authenticated %}
-          <a href="{{ url_for('recipe_browse') }}">Browse recipes</a> and click "Share Post" to contribute!
-        {% else %}
-          <a href="{{ url_for('user_login') }}">Log in</a> to share recipes with the community.
-        {% endif %}
-      </div>
-    {% endif %}
-    
+    <h3 class="mb-3">Browse by Category</h3>
+    <p class="text-muted mb-4">Not sure what to cook? Explore recipes by cuisine, diet, or meal type!</p>
   </div>
 </div>
 
+<div class="row g-3 mb-4">
+  <!-- Popular Cuisines -->
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm hover-lift">
+      <div class="card-body text-center">
+        <div class="fs-1 mb-2">🍝</div>
+        <h5 class="card-title">Italian</h5>
+        <p class="card-text small text-muted">Pasta, pizza, and more</p>
+        <a href="{{ url_for('recipe_browse', cuisine='italian') }}" class="btn btn-sm btn-outline-primary">
+          Explore
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm hover-lift">
+      <div class="card-body text-center">
+        <div class="fs-1 mb-2">🌮</div>
+        <h5 class="card-title">Mexican</h5>
+        <p class="card-text small text-muted">Tacos, burritos, enchiladas</p>
+        <a href="{{ url_for('recipe_browse', cuisine='mexican') }}" class="btn btn-sm btn-outline-primary">
+          Explore
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm hover-lift">
+      <div class="card-body text-center">
+        <div class="fs-1 mb-2">🍜</div>
+        <h5 class="card-title">Asian</h5>
+        <p class="card-text small text-muted">Stir-fries, noodles, curries</p>
+        <a href="{{ url_for('recipe_browse', cuisine='asian') }}" class="btn btn-sm btn-outline-primary">
+          Explore
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm hover-lift">
+      <div class="card-body text-center">
+        <div class="fs-1 mb-2">🍔</div>
+        <h5 class="card-title">American</h5>
+        <p class="card-text small text-muted">Burgers, BBQ, comfort food</p>
+        <a href="{{ url_for('recipe_browse', cuisine='american') }}" class="btn btn-sm btn-outline-primary">
+          Explore
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Diet Filters -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card border-success h-100 shadow-sm hover-lift">
+      <div class="card-body text-center">
+        <div class="fs-1 mb-2">🥗</div>
+        <h5 class="card-title text-success">Vegetarian</h5>
+        <p class="card-text small text-muted">Plant-based deliciousness</p>
+        <a href="{{ url_for('recipe_browse', diet='vegetarian') }}" class="btn btn-sm btn-success">
+          View Recipes
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card border-info h-100 shadow-sm hover-lift">
+      <div class="card-body text-center">
+        <div class="fs-1 mb-2">🌱</div>
+        <h5 class="card-title text-info">Vegan</h5>
+        <p class="card-text small text-muted">100% plant-based meals</p>
+        <a href="{{ url_for('recipe_browse', diet='vegan') }}" class="btn btn-sm btn-info">
+          View Recipes
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card border-warning h-100 shadow-sm hover-lift">
+      <div class="card-body text-center">
+        <div class="fs-1 mb-2">🌾</div>
+        <h5 class="card-title text-warning">Gluten Free</h5>
+        <p class="card-text small text-muted">Celiac-friendly options</p>
+        <a href="{{ url_for('recipe_browse', diet='gluten free') }}" class="btn btn-sm btn-warning">
+          View Recipes
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Time-Based Filters -->
+<div class="row g-3">
+  <div class="col-12">
+    <h4 class="mb-3">Quick Meals</h4>
+  </div>
+  
+  <div class="col-md-4">
+    <a href="{{ url_for('recipe_browse', maxReadyTime='15') }}" class="text-decoration-none">
+      <div class="card border-0 shadow-sm hover-lift h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="fs-2 text-danger me-3">
+              <i class="bi bi-lightning-fill"></i>
+            </div>
+            <div>
+              <h5 class="card-title mb-0">15 Minutes or Less</h5>
+              <p class="card-text small text-muted mb-0">Super quick recipes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-4">
+    <a href="{{ url_for('recipe_browse', maxReadyTime='30') }}" class="text-decoration-none">
+      <div class="card border-0 shadow-sm hover-lift h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="fs-2 text-primary me-3">
+              <i class="bi bi-alarm-fill"></i>
+            </div>
+            <div>
+              <h5 class="card-title mb-0">30 Minutes or Less</h5>
+              <p class="card-text small text-muted mb-0">Perfect for weeknights</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-4">
+    <a href="{{ url_for('recipe_browse', type='breakfast') }}" class="text-decoration-none">
+      <div class="card border-0 shadow-sm hover-lift h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="fs-2 text-warning me-3">
+              <i class="bi bi-sunrise-fill"></i>
+            </div>
+            <div>
+              <h5 class="card-title mb-0">Breakfast Ideas</h5>
+              <p class="card-text small text-muted mb-0">Start your day right</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<style>
+.hover-lift {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+.hover-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+}
+</style>
 {% endblock %}

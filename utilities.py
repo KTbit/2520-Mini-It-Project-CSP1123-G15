@@ -1,37 +1,59 @@
 import requests
 from config import Config
-import os, requests
-from datetime import datetime, timedelta
-from databasemodels import RecipeCache, db
-BASE = "https://api.spoonacular.com"
-API_KEY = Config.SPOONACULAR_API_KEY
 
 
-#week 5 - modified utils search recipes by ing function to include filters / categorized searching
-def search_recipes_by_ingredients(ingredients: str, number: int = 10):
-    """Search recipes by ingredients - SIMPLE VERSION THAT WORKS."""
-    url = "https://api.spoonacular.com/recipes/findByIngredients"
+def search_recipes_by_ingredients(ingredients: str, number: int = 10, **filters):
+    """
+    Search recipes by ingredients with optional category filters.
+    
+    Additional filter parameters:
+    - cuisine: str (e.g., 'italian', 'mexican', 'asian')
+    - diet: str (e.g., 'vegetarian', 'vegan', 'gluten free')
+    - type: str (e.g., 'main course', 'dessert', 'breakfast')
+    - maxReadyTime: int (max cooking time in minutes)
+    - intolerances: str (e.g., 'dairy', 'egg', 'gluten')
+    """
+    url = "https://api.spoonacular.com/recipes/complexSearch"
+    
     params = {
         "apiKey": Config.SPOONACULAR_API_KEY,
-        "ingredients": ingredients,
+        "includeIngredients": ingredients,
         "number": number,
-        "ranking": 1,
+        "addRecipeInformation": True,
+        "fillIngredients": True,
         "ignorePantry": True,
+        "sort": "min-missing-ingredients",
     }
+    
+    # Add category filters if provided
+    if filters.get('cuisine'):
+        params['cuisine'] = filters['cuisine']
+    
+    if filters.get('diet'):
+        params['diet'] = filters['diet']
+    
+    if filters.get('type'):
+        params['type'] = filters['type']
+    
+    if filters.get('maxReadyTime'):
+        params['maxReadyTime'] = filters['maxReadyTime']
+    
+    if filters.get('intolerances'):
+        params['intolerances'] = filters['intolerances']
+
     try:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
-        recipes = response.json()
-        
-        print(f"[DEBUG] Found {len(recipes)} recipes for '{ingredients}'")
-        
-        return recipes
-        
+        data = response.json()
+        # Return the results array
+        return data.get('results', [])
     except requests.exceptions.RequestException as exc:
         print(f"[Spoonacular] Error searching recipes: {exc}")
         return []
 
+
 def get_recipe_details(recipe_id: int):
+    """Fetch detailed information about a specific recipe."""
     url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
     params = {
         "apiKey": Config.SPOONACULAR_API_KEY,
@@ -46,45 +68,37 @@ def get_recipe_details(recipe_id: int):
         print(f"[Spoonacular] Error getting recipe details: {exc}")
         return None
 
-def get_recipe_cached(recipe_id: int, force_refresh=False):
-    """Fetch recipe info from cache if fresh, otherwise fetch from Spoonacular."""
 
-    cache = RecipeCache.query.filter_by(spoonacular_id=recipe_id).first()
-
-    # If cached within last 7 days
-    if cache and not force_refresh:
-        if cache.last_fetched and cache.last_fetched > datetime.utcnow() - timedelta(days=7):
-            return cache.json_blob
-
-    # 1. Try price breakdown JSON endpoint
-    price_url = f"{BASE}/recipes/{recipe_id}/priceBreakdownWidget.json"
-    params = {"apiKey": API_KEY}
+def search_recipes_advanced(query: str = "", **filters):
+    """
+    Advanced recipe search supporting both text queries and filters.
+    Useful for pure category browsing without specific ingredients.
+    
+    Parameters:
+    - query: str (general search term)
+    - cuisine, diet, type, maxReadyTime, intolerances (same as above)
+    """
+    url = "https://api.spoonacular.com/recipes/complexSearch"
+    
+    params = {
+        "apiKey": Config.SPOONACULAR_API_KEY,
+        "number": filters.get('number', 12),
+        "addRecipeInformation": True,
+    }
+    
+    if query:
+        params['query'] = query
+    
+    # Add all filters
+    for key in ['cuisine', 'diet', 'type', 'maxReadyTime', 'intolerances']:
+        if filters.get(key):
+            params[key] = filters[key]
 
     try:
-        price_response = requests.get(price_url, params=params, timeout=10)
-
-        if price_response.status_code == 200:
-            data = price_response.json()
-        else:
-            # 2. Fallback to recipe information endpoint
-            info_url = f"{BASE}/recipes/{recipe_id}/information"
-            info_response = requests.get(info_url, params=params, timeout=10)
-            info_response.raise_for_status()
-            data = info_response.json()
-
-    except requests.exceptions.RequestException as e:
-        print(f"[CACHE] Error fetching data: {e}")
-        return None
-
-    # Update or create cache
-    if not cache:
-        cache = RecipeCache(spoonacular_id=recipe_id)
-        db.session.add(cache)
-
-    cache.json_blob = data
-    cache.price_per_serving = data.get("totalCostPerServing") or data.get("pricePerServing")
-    cache.ready_in_minutes = data.get("readyInMinutes")
-    cache.last_fetched = datetime.utcnow()
-
-    db.session.commit()
-    return data
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return data.get('results', [])
+    except requests.exceptions.RequestException as exc:
+        print(f"[Spoonacular] Error in advanced search: {exc}")
+        return []

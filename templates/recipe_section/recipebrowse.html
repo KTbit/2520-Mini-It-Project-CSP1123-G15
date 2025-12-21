@@ -1,128 +1,239 @@
 {% extends "nav_base.html" %}
-{% block title %}Search Results · Recipe Finder{% endblock %}
+{% block title %}Search Recipes · Recipe Finder{% endblock %}
 
 {% block content %}
 <h2 class="mb-3">Search Recipes</h2>
 
-<form class="row g-2 mb-4" method="get" action="{{ url_for('recipe_browse') }}">
-  <div class="col-md-9">
-    <input type="text"
-           class="form-control"
-           name="ingredients"
-           placeholder="e.g. egg, tomato, cheese"
-           value="{{ ingredients or '' }}"
-           required>
+<form class="mb-4" method="get" action="{{ url_for('recipe_browse') }}">
+  <!-- Ingredients Search -->
+  <div class="row g-2 mb-3">
+    <div class="col-md-9">
+      <label for="ingredients" class="form-label fw-semibold">Ingredients</label>
+      <input type="text"
+             class="form-control"
+             id="ingredients"
+             name="ingredients"
+             placeholder="e.g. egg, tomato, cheese"
+             value="{{ active_filters.ingredients or '' }}">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-primary w-100" type="submit">
+        <i class="bi bi-search"></i> Search
+      </button>
+    </div>
   </div>
-  <div class="col-md-3 d-grid d-md-block">
-    <button class="btn btn-primary w-100" type="submit">
-      <i class="bi bi-search"></i> Search
-    </button>
+
+  <!-- Category Filters -->
+  <div class="card mb-3">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">
+        <button class="btn btn-link text-decoration-none text-dark p-0" 
+                type="button" 
+                data-bs-toggle="collapse" 
+                data-bs-target="#filterCollapse" 
+                aria-expanded="true">
+          <i class="bi bi-funnel"></i> Filter by Category
+        </button>
+      </h5>
+    </div>
+    <div class="collapse show" id="filterCollapse">
+      <div class="card-body">
+        <div class="row g-3">
+          <!-- Cuisine Type -->
+          <div class="col-md-3">
+            <label for="cuisine" class="form-label">Cuisine</label>
+            <select class="form-select" id="cuisine" name="cuisine">
+              <option value="">Any Cuisine</option>
+              <option value="african" {% if active_filters.cuisine == 'african' %}selected{% endif %}>African</option>
+              <option value="asian" {% if active_filters.cuisine == 'asian' %}selected{% endif %}>Asian</option>
+              <option value="american" {% if active_filters.cuisine == 'american' %}selected{% endif %}>American</option>
+              <option value="british" {% if active_filters.cuisine == 'british' %}selected{% endif %}>British</option>
+              <option value="cajun" {% if active_filters.cuisine == 'cajun' %}selected{% endif %}>Cajun</option>
+              <option value="caribbean" {% if active_filters.cuisine == 'caribbean' %}selected{% endif %}>Caribbean</option>
+              <option value="chinese" {% if active_filters.cuisine == 'chinese' %}selected{% endif %}>Chinese</option>
+              <option value="eastern european" {% if active_filters.cuisine == 'eastern european' %}selected{% endif %}>Eastern European</option>
+              <option value="european" {% if active_filters.cuisine == 'european' %}selected{% endif %}>European</option>
+              <option value="french" {% if active_filters.cuisine == 'french' %}selected{% endif %}>French</option>
+              <option value="german" {% if active_filters.cuisine == 'german' %}selected{% endif %}>German</option>
+              <option value="greek" {% if active_filters.cuisine == 'greek' %}selected{% endif %}>Greek</option>
+              <option value="indian" {% if active_filters.cuisine == 'indian' %}selected{% endif %}>Indian</option>
+              <option value="irish" {% if active_filters.cuisine == 'irish' %}selected{% endif %}>Irish</option>
+              <option value="italian" {% if active_filters.cuisine == 'italian' %}selected{% endif %}>Italian</option>
+              <option value="japanese" {% if active_filters.cuisine == 'japanese' %}selected{% endif %}>Japanese</option>
+              <option value="jewish" {% if active_filters.cuisine == 'jewish' %}selected{% endif %}>Jewish</option>
+              <option value="korean" {% if active_filters.cuisine == 'korean' %}selected{% endif %}>Korean</option>
+              <option value="latin american" {% if active_filters.cuisine == 'latin american' %}selected{% endif %}>Latin American</option>
+              <option value="mediterranean" {% if active_filters.cuisine == 'mediterranean' %}selected{% endif %}>Mediterranean</option>
+              <option value="mexican" {% if active_filters.cuisine == 'mexican' %}selected{% endif %}>Mexican</option>
+              <option value="middle eastern" {% if active_filters.cuisine == 'middle eastern' %}selected{% endif %}>Middle Eastern</option>
+              <option value="nordic" {% if active_filters.cuisine == 'nordic' %}selected{% endif %}>Nordic</option>
+              <option value="southern" {% if active_filters.cuisine == 'southern' %}selected{% endif %}>Southern</option>
+              <option value="spanish" {% if active_filters.cuisine == 'spanish' %}selected{% endif %}>Spanish</option>
+              <option value="thai" {% if active_filters.cuisine == 'thai' %}selected{% endif %}>Thai</option>
+              <option value="vietnamese" {% if active_filters.cuisine == 'vietnamese' %}selected{% endif %}>Vietnamese</option>
+            </select>
+          </div>
+
+          <!-- Diet Type -->
+          <div class="col-md-3">
+            <label for="diet" class="form-label">Diet</label>
+            <select class="form-select" id="diet" name="diet">
+              <option value="">Any Diet</option>
+              <option value="gluten free" {% if active_filters.diet == 'gluten free' %}selected{% endif %}>Gluten Free</option>
+              <option value="ketogenic" {% if active_filters.diet == 'ketogenic' %}selected{% endif %}>Ketogenic</option>
+              <option value="vegetarian" {% if active_filters.diet == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
+              <option value="lacto-vegetarian" {% if active_filters.diet == 'lacto-vegetarian' %}selected{% endif %}>Lacto-Vegetarian</option>
+              <option value="ovo-vegetarian" {% if active_filters.diet == 'ovo-vegetarian' %}selected{% endif %}>Ovo-Vegetarian</option>
+              <option value="vegan" {% if active_filters.diet == 'vegan' %}selected{% endif %}>Vegan</option>
+              <option value="pescetarian" {% if active_filters.diet == 'pescetarian' %}selected{% endif %}>Pescetarian</option>
+              <option value="paleo" {% if active_filters.diet == 'paleo' %}selected{% endif %}>Paleo</option>
+              <option value="primal" {% if active_filters.diet == 'primal' %}selected{% endif %}>Primal</option>
+              <option value="low fodmap" {% if active_filters.diet == 'low fodmap' %}selected{% endif %}>Low FODMAP</option>
+              <option value="whole30" {% if active_filters.diet == 'whole30' %}selected{% endif %}>Whole30</option>
+            </select>
+          </div>
+
+          <!-- Meal Type -->
+          <div class="col-md-3">
+            <label for="type" class="form-label">Meal Type</label>
+            <select class="form-select" id="type" name="type">
+              <option value="">Any Type</option>
+              <option value="main course" {% if active_filters.type == 'main course' %}selected{% endif %}>Main Course</option>
+              <option value="side dish" {% if active_filters.type == 'side dish' %}selected{% endif %}>Side Dish</option>
+              <option value="dessert" {% if active_filters.type == 'dessert' %}selected{% endif %}>Dessert</option>
+              <option value="appetizer" {% if active_filters.type == 'appetizer' %}selected{% endif %}>Appetizer</option>
+              <option value="salad" {% if active_filters.type == 'salad' %}selected{% endif %}>Salad</option>
+              <option value="bread" {% if active_filters.type == 'bread' %}selected{% endif %}>Bread</option>
+              <option value="breakfast" {% if active_filters.type == 'breakfast' %}selected{% endif %}>Breakfast</option>
+              <option value="soup" {% if active_filters.type == 'soup' %}selected{% endif %}>Soup</option>
+              <option value="beverage" {% if active_filters.type == 'beverage' %}selected{% endif %}>Beverage</option>
+              <option value="sauce" {% if active_filters.type == 'sauce' %}selected{% endif %}>Sauce</option>
+              <option value="marinade" {% if active_filters.type == 'marinade' %}selected{% endif %}>Marinade</option>
+              <option value="fingerfood" {% if active_filters.type == 'fingerfood' %}selected{% endif %}>Finger Food</option>
+              <option value="snack" {% if active_filters.type == 'snack' %}selected{% endif %}>Snack</option>
+              <option value="drink" {% if active_filters.type == 'drink' %}selected{% endif %}>Drink</option>
+            </select>
+          </div>
+
+          <!-- Max Cooking Time -->
+          <div class="col-md-3">
+            <label for="maxReadyTime" class="form-label">Max Time (minutes)</label>
+            <select class="form-select" id="maxReadyTime" name="maxReadyTime">
+              <option value="">Any Time</option>
+              <option value="15" {% if active_filters.maxReadyTime == '15' %}selected{% endif %}>15 minutes</option>
+              <option value="30" {% if active_filters.maxReadyTime == '30' %}selected{% endif %}>30 minutes</option>
+              <option value="45" {% if active_filters.maxReadyTime == '45' %}selected{% endif %}>45 minutes</option>
+              <option value="60" {% if active_filters.maxReadyTime == '60' %}selected{% endif %}>1 hour</option>
+              <option value="90" {% if active_filters.maxReadyTime == '90' %}selected{% endif %}>1.5 hours</option>
+              <option value="120" {% if active_filters.maxReadyTime == '120' %}selected{% endif %}>2 hours</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-funnel-fill"></i> Apply Filters
+          </button>
+          <a href="{{ url_for('recipe_browse') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i> Clear All
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 </form>
 
-
-<!-- Filters (always visible) -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-funnel"></i> Filters & Sorting</h5>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label">Sort By</label>
-                        <select class="form-select" name="sort">
-                            <option value="relevance" {% if sort_by == 'relevance' %}selected{% endif %}>Relevance</option>
-                            <option value="time_asc" {% if sort_by == 'time_asc' %}selected{% endif %}>Time (Low to High)</option>
-                            <option value="time_desc" {% if sort_by == 'time_desc' %}selected{% endif %}>Time (High to Low)</option>
-                            <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Price (Low to High)</option>
-                            <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Price (High to Low)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Max Cooking Time</label>
-                        <select class="form-select" name="max_time">
-                            <option value="">Any time</option>
-                            <option value="15" {% if max_time == 15 %}selected{% endif %}>15 minutes</option>
-                            <option value="30" {% if max_time == 30 %}selected{% endif %}>30 minutes</option>
-                            <option value="45" {% if max_time == 45 %}selected{% endif %}>45 minutes</option>
-                            <option value="60" {% if max_time == 60 %}selected{% endif %}>60 minutes</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Max Price per Serving</label>
-                        <select class="form-select" name="max_price">
-                            <option value="">Any price</option>
-                            <option value="5" {% if max_price == 5.0 %}selected{% endif %}>RM 5</option>
-                            <option value="10" {% if max_price == 10.0 %}selected{% endif %}>RM 10</option>
-                            <option value="15" {% if max_price == 15.0 %}selected{% endif %}>RM 15</option>
-                            <option value="20" {% if max_price == 20.0 %}selected{% endif %}>RM 20</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Diet Type</label>
-                        <select class="form-select" name="diet">
-                            <option value="">Any diet</option>
-                            <option value="vegetarian" {% if diet == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
-                            <option value="vegan" {% if diet == 'vegan' %}selected{% endif %}>Vegan</option>
-                            <option value="gluten-free" {% if diet == 'gluten-free' %}selected{% endif %}>Gluten Free</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </form>
-    
-    <!-- Results -->
-    {% if recipes %}
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5>Found {{ recipes|length }} recipes</h5>
-            {% if ingredients %}
-                <span class="badge bg-primary">Searching: {{ ingredients }}</span>
-            {% endif %}
-        </div>
-        
-        <div class="row">
-            {% for recipe in recipes %}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100 shadow-sm">
-                    {% if recipe.image %}
-                        <img src="{{ recipe.image }}" class="card-img-top" alt="{{ recipe.title }}">
-                    {% else %}
-                        <div class="card-img-top bg-secondary text-white text-center py-5">
-                            <i class="bi bi-image" style="font-size: 3rem;"></i>
-                        </div>
-                    {% endif %}
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title">{{ recipe.title }}</h5>
-                        
-                        <div class="mt-auto">
-                            <p class="text-muted mb-2 small">
-                                {% if recipe.readyInMinutes %}
-                                    <i class="bi bi-clock"></i> {{ recipe.readyInMinutes }} min
-                                {% endif %}
-                                {% if recipe.pricePerServing %}
-                                    | <i class="bi bi-cash"></i> RM {{ "%.2f"|format(recipe.pricePerServing / 100) }}
-                                {% endif %}
-                            </p>
-                            <a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" 
-                               class="btn btn-primary btn-sm w-100">
-                                <i class="bi bi-eye"></i> View Recipe
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    {% elif ingredients %}
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> No recipes found for "{{ ingredients }}"
-        </div>
-    {% else %}
-        <div class="text-center text-muted py-5">
-            <i class="bi bi-search" style="font-size: 4rem;"></i>
-            <p class="mt-3">Enter ingredients to find recipes!</p>
-        </div>
+<!-- Active Filters Display -->
+{% set has_filters = active_filters.ingredients or active_filters.cuisine or active_filters.diet or active_filters.type or active_filters.maxReadyTime %}
+{% if has_filters %}
+<div class="mb-3">
+  <strong>Active filters:</strong>
+  <div class="d-inline-flex flex-wrap gap-2 ms-2">
+    {% if active_filters.ingredients %}
+    <span class="badge bg-primary">
+      Ingredients: {{ active_filters.ingredients }}
+    </span>
     {% endif %}
+    {% if active_filters.cuisine %}
+    <span class="badge bg-info text-dark">
+      Cuisine: {{ active_filters.cuisine|title }}
+    </span>
+    {% endif %}
+    {% if active_filters.diet %}
+    <span class="badge bg-success">
+      Diet: {{ active_filters.diet|title }}
+    </span>
+    {% endif %}
+    {% if active_filters.type %}
+    <span class="badge bg-warning text-dark">
+      Type: {{ active_filters.type|title }}
+    </span>
+    {% endif %}
+    {% if active_filters.maxReadyTime %}
+    <span class="badge bg-secondary">
+      Max Time: {{ active_filters.maxReadyTime }} min
+    </span>
+    {% endif %}
+  </div>
 </div>
+{% endif %}
+
+<!-- Results Section -->
+{% if recipes %}
+  <p class="text-muted mb-3">
+    Found <strong>{{ recipes|length }}</strong> recipe(s)
+  </p>
+
+  <div class="row g-3">
+    {% for r in recipes %}
+    <div class="col-md-4">
+      <div class="card h-100 shadow-sm">
+        {% if r.image %}
+        <img src="{{ r.image }}" class="card-img-top" alt="{{ r.title }}" style="height: 200px; object-fit: cover;">
+        {% endif %}
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">{{ r.title }}</h5>
+          
+          <div class="mb-2">
+            {% if r.readyInMinutes %}
+            <span class="badge bg-light text-dark me-1">
+              <i class="bi bi-clock"></i> {{ r.readyInMinutes }} min
+            </span>
+            {% endif %}
+            {% if r.servings %}
+            <span class="badge bg-light text-dark">
+              <i class="bi bi-people"></i> {{ r.servings }} servings
+            </span>
+            {% endif %}
+          </div>
+
+          {% if r.usedIngredientCount is defined %}
+          <p class="card-text small text-muted">
+            Uses {{ r.usedIngredientCount }} of your ingredients
+            {% if r.missedIngredientCount %}, {{ r.missedIngredientCount }} missing{% endif %}.
+          </p>
+          {% endif %}
+
+          <a href="{{ url_for('recipe_detail', recipe_id=r.id) }}"
+             class="btn btn-sm btn-outline-primary mt-auto">
+            View Details
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% elif has_filters %}
+  <div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    No recipes found matching your criteria. Try adjusting your filters or ingredients.
+  </div>
+{% else %}
+  <div class="text-center text-muted py-5">
+    <i class="bi bi-search" style="font-size: 3rem;"></i>
+    <p class="mt-3">
+      Enter ingredients or select filters above to discover delicious recipes!
+    </p>
+  </div>
+{% endif %}
 {% endblock %}
