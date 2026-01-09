@@ -28,8 +28,7 @@ from io import BytesIO
 from functools import wraps
 from databasemodels import db, User, SavedRecipe, ShoppingList, Post
 from config import Config
-from utilities import search_recipes_by_ingredients, get_recipe_details
-from utilities import get_recipe_cached
+from utilities import search_recipes_by_ingredients, get_recipe_details, get_recipe_cached, autocomplete_ingredients
 
 
 
@@ -123,6 +122,19 @@ def recipe_browse():
         recipes=recipes,
         active_filters=active_filters,
     )
+
+# week 9 - added the route for autocompleting ingredients in search. its like recipe radar, super cook websites, etc
+@app.route("/api/autocomplete/ingredients")
+def api_autocomplete_ingredients():
+    """API endpoint for ingredient autocomplete suggestions."""
+    query = request.args.get("q", "").strip()
+    
+    if not query or len(query) < 2:
+        return {"suggestions": []}
+    
+    suggestions = autocomplete_ingredients(query, number=8)
+    return {"suggestions": suggestions}
+            
 
 @app.route("/recipes/<int:recipe_id>")
 def recipe_detail(recipe_id: int):
@@ -326,13 +338,14 @@ def posts_feed():
     
     return render_template('posts_feed.html', posts=posts)
 
-
+# Week 8 - refurbished the post_view route and its html page
 @app.route('/posts/<int:post_id>')
 def post_view(post_id):
     """View a single post"""
     post = Post.query.get_or_404(post_id)
     recipe = get_recipe_cached(post.spoonacular_id)
-    return render_template('post_view.html', post=post, recipe=recipe)
+    
+    return render_template('post_view.html', post=post, recipe=recipe, Comment=Comment)
 
 
 @app.route('/profile/<int:user_id>')
@@ -367,6 +380,55 @@ def unfollow(user_id):
         current_user.followed.remove(user)
         db.session.commit()
     return redirect(url_for('profile', user_id=user_id))
+
+# Week 10 - refurbished comments; route and appearance-wise
+
+from databasemodels import db, User, SavedRecipe, ShoppingList, Post, Comment
+
+@app.route('/posts/<int:post_id>/comment', methods=['POST'])
+@login_required
+def add_comment(post_id):
+    """Add a comment to a post"""
+    post = Post.query.get_or_404(post_id)
+    comment_text = request.form.get('comment', '').strip()
+    
+    if not comment_text:
+        flash("Comment cannot be empty!", "warning")
+        return redirect(url_for('post_view', post_id=post_id))
+    
+    if len(comment_text) > 500:
+        flash("Comment is too long! Maximum 500 characters.", "warning")
+        return redirect(url_for('post_view', post_id=post_id))
+    
+    comment = Comment(
+        user_id=current_user.id,
+        post_id=post_id,
+        body=comment_text
+    )
+    
+    db.session.add(comment)
+    db.session.commit()
+    
+    flash("Comment added! 💬", "success")
+    return redirect(url_for('post_view', post_id=post_id))
+
+
+@app.route('/posts/<int:post_id>/comment/<int:comment_id>/delete', methods=['POST'])
+@login_required
+def delete_comment(post_id, comment_id):
+    """Delete a comment (only by author or admin)"""
+    comment = Comment.query.get_or_404(comment_id)
+    
+    # Check if user is author or admin
+    if comment.user_id != current_user.id and not current_user.is_admin:
+        flash("You can only delete your own comments!", "danger")
+        return redirect(url_for('post_view', post_id=post_id))
+    
+    db.session.delete(comment)
+    db.session.commit()
+    
+    flash("Comment deleted.", "info")
+    return redirect(url_for('post_view', post_id=post_id))
 
 
 

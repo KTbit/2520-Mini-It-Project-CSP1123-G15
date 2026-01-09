@@ -5,26 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Recipe Finder{% endblock %}</title>
 
-    <!-- Bootstrap CSS -->
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     >
-
-    <!-- Bootstrap Icons -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
     >
-
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="bg-light d-flex flex-column min-vh-100">
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container">
-    <a class="navbar-brand" href="{{ url_for('index') }}">Recipe Finder</a>
+    <!-- Custom Logo -->
+    <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
+      <img src="{{ url_for('static', filename='img/recipefinder_logo.png') }}" 
+           alt="Recipe Finder Logo" 
+           height="40" 
+           class="me-2"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+      <span style="display: none;">Recipe Finder</span>
+    </a>
+    
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
             data-bs-target="#navbarNav" aria-controls="navbarNav"
             aria-expanded="false" aria-label="Toggle navigation">
@@ -40,6 +44,10 @@
         <li class="nav-item">
           <a class="nav-link{% if request.endpoint == 'recipe_browse' %} active{% endif %}"
              href="{{ url_for('recipe_browse') }}">Search Recipes</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link{% if request.endpoint == 'posts_feed' %} active{% endif %}"
+             href="{{ url_for('posts_feed') }}">Community Feed</a>
         </li>
         {% if current_user.is_authenticated %}
         <li class="nav-item">
@@ -59,61 +67,33 @@
         {% endif %}
       </ul>
 
-      <ul class="navbar-nav ms-auto">
-    <li class="nav-item">
-        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" href="{{ url_for('recipe_browse') }}">Browse Recipes</a>
-    </li>
-    
-    {% if current_user.is_authenticated %}
-        <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" 
-               role="button" data-bs-toggle="dropdown">
-                <i class="bi bi-person-circle"></i> {{ current_user.username }}
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li>
-                    <a class="dropdown-item" href="{{ url_for('profile', user_id=current_user.id) }}">
-                        <i class="bi bi-person"></i> My Profile
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="{{ url_for('user_dashboard') }}">
-                        <i class="bi bi-speedometer2"></i> Dashboard
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="{{ url_for('shopping_list') }}">
-                        <i class="bi bi-cart"></i> Shopping List
-                    </a>
-                </li>
-                {% if current_user.is_admin %}
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
-                            <i class="bi bi-shield-lock"></i> Admin Dashboard
-                        </a>
-                    </li>
-                {% endif %}
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                    <a class="dropdown-item" href="{{ url_for('user_logout') }}">
-                        <i class="bi bi-box-arrow-right"></i> Logout
-                    </a>
-                </li>
-            </ul>
-        </li>
-    {% endif %}
-</ul>
+      <!-- Floating chatbot widget -->
+<button id="cb-toggle" type="button" class="btn btn-primary cb-toggle" aria-expanded="false">
+  <i class="bi bi-chat-dots"></i> Chat
+</button>
+
+<div id="cb-panel" class="cb-panel" role="dialog" aria-label="RecipeBot">
+  <div class="cb-header">
+    <div class="fw-semibold">RecipeBot</div>
+    <button id="cb-close" type="button" class="btn btn-sm btn-outline-light">
+      <i class="bi bi-x"></i>
+    </button>
+  </div>
+  <div id="cb-messages" class="cb-messages" aria-live="polite"></div>
+  <div class="cb-footer">
+    <form id="cb-form" autocomplete="off">
+      <input id="cb-input" type="text" class="form-control" placeholder="Ask me… e.g. find recipes with chicken, rice" />
+      <button type="submit" class="btn btn-dark">Send</button>
+    </form>
+  </div>
+</div>
 
       <ul class="navbar-nav">
         {% if current_user.is_authenticated %}
         <li class="nav-item">
-          <span class="navbar-text me-2">
-            Hello, {{ current_user.username }}!
-          </span>
+          <a href="{{ url_for('profile', user_id=current_user.id) }}" class="nav-link">
+            <i class="bi bi-person-circle"></i> {{ current_user.username }}
+          </a>
         </li>
         <li class="nav-item">
           <a class="btn btn-outline-light btn-sm" href="{{ url_for('user_logout') }}">
@@ -140,7 +120,6 @@
 <main class="flex-grow-1">
   <div class="container my-4">
 
-    <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
       <div class="mb-3">
@@ -160,11 +139,12 @@
 
 <footer class="bg-dark text-white text-center py-3 mt-auto">
   <div class="container">
-    <p class="mb-0">&copy; 2025 Mini IT Project &mdash; Budget-Friendly Recipe Finder</p>
-    <small class="text-secondary">Built with Flask, Bootstrap, and Spoonacular API</small>
+    <p class="mb-0">&copy; 2025 Mini IT Project – Budget-Friendly Recipe Finder</p>
   </div>
 </footer>
 
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
 </body>
 </html>
