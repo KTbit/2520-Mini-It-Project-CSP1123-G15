@@ -15,33 +15,62 @@
         </p>
 
         {% if current_user.is_authenticated %}
-        <form method="post"
-              action="{% if is_saved %}{{ url_for('unsave_recipe', recipe_id=recipe.id) }}{% else %}{{ url_for('save_recipe', recipe_id=recipe.id) }}{% endif %}">
-          <input type="hidden" name="recipe_name" value="{{ recipe.title }}">
-          {% if is_saved %}
-          <button type="submit" class="btn btn-outline-danger btn-sm">
+        <!-- Save to Collection Button (Enhanced!) -->
+        {% if not is_saved %}
+        <div class="dropdown d-grid mb-2">
+          <button class="btn btn-primary dropdown-toggle" 
+                  type="button" 
+                  data-bs-toggle="dropdown">
+            <i class="bi bi-heart-fill"></i> Save to Collection
+          </button>
+          <ul class="dropdown-menu w-100">
+            {% for collection in current_user.collections.order_by(Collection.is_default.desc()).all() %}
+            <li>
+              <form method="post" action="{{ url_for('save_recipe', recipe_id=recipe.id) }}">
+                <input type="hidden" name="recipe_name" value="{{ recipe.title }}">
+                <input type="hidden" name="recipe_image" value="{{ recipe.image }}">
+                <input type="hidden" name="collection_id" value="{{ collection.id }}">
+                <button type="submit" class="dropdown-item">
+                  {% if collection.is_default %}
+                  <i class="bi bi-star-fill text-warning"></i>
+                  {% else %}
+                  <i class="bi bi-folder"></i>
+                  {% endif %}
+                  {{ collection.name }}
+                  <small class="text-muted">({{ collection.recipes.count() }})</small>
+                </button>
+              </form>
+            </li>
+            {% endfor %}
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item text-primary" href="{{ url_for('user_dashboard') }}">
+                <i class="bi bi-plus-circle"></i> Create New Collection
+              </a>
+            </li>
+          </ul>
+        </div>
+        {% else %}
+        <form method="post" action="{{ url_for('unsave_recipe', recipe_id=recipe.id) }}" class="d-grid mb-2">
+          <button type="submit" class="btn btn-outline-danger">
             <i class="bi bi-heartbreak"></i> Remove from Saved
           </button>
-          {% else %}
-          <button type="submit" class="btn btn-primary btn-sm">
-            <i class="bi bi-heart-fill"></i> Save to Favourites
+        </form>
+        {% endif %}
+
+        <!-- Share Recipe Button -->
+        <form method="post" action="{{ url_for('create_post', recipe_id=recipe.id) }}" class="d-grid mb-2">
+          <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
+          <button type="submit" class="btn btn-outline-primary">
+            <i class="bi bi-share-fill"></i> Share This Recipe
           </button>
-          {% endif %}
         </form>
 
-      <!--week 5 user post button creation-->
-        <form method="post" action="{{ url_for('create_post') }}" style="display:inline;">
-        <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
-        <button type="submit" class="btn btn-success">
-            <i class="bi bi-share"></i> Share as Post
-        </button>
-    </form>
-
-
+        <!-- Add to Shopping List -->
         <form method="post"
               action="{{ url_for('add_to_shopping_list', recipe_id=recipe.id) }}"
-              class="mt-2">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">
+              class="d-grid">
+          <button type="submit" class="btn btn-outline-secondary">
             <i class="bi bi-basket-fill"></i> Add to Shopping List
           </button>
         </form>
@@ -91,5 +120,3 @@
   </div>
 </div>
 {% endblock %}
-
-

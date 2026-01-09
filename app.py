@@ -26,7 +26,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
 
 from functools import wraps
-from databasemodels import db, User, SavedRecipe, ShoppingList, Post
+from databasemodels import db, User, SavedRecipe, ShoppingList, Post, Comment, Collection
 from config import Config
 from utilities import search_recipes_by_ingredients, get_recipe_details, get_recipe_cached, autocomplete_ingredients
 
@@ -224,36 +224,6 @@ def user_logout():
     return redirect(url_for("index"))
 
 
-@app.route("/dashboard")
-@login_required
-def user_dashboard():
-    """Simple user dashboard showing saved recipes."""
-    saved = SavedRecipe.query.filter_by(user_id=current_user.id).all()
-    return render_template("user/userdashboard.html", saved_recipes=saved)
-
-
-@app.route("/recipes/<int:recipe_id>/save", methods=["POST"])
-@login_required
-def save_recipe(recipe_id: int):
-    recipe_name = request.form.get("recipe_name", "").strip() or "Recipe"
-
-    existing = SavedRecipe.query.filter_by(
-        user_id=current_user.id, recipe_id=recipe_id
-    ).first()
-    if existing:
-        flash("Recipe already in your saved list.", "info")
-        return redirect(url_for("recipe_detail", recipe_id=recipe_id))
-
-    saved = SavedRecipe(
-        user_id=current_user.id,
-        recipe_id=recipe_id,
-        recipe_name=recipe_name,
-    )
-    db.session.add(saved)
-    db.session.commit()
-
-    flash("Recipe saved to your favourites.", "success")
-    return redirect(url_for("recipe_detail", recipe_id=recipe_id))
 
 
 @app.route("/recipes/<int:recipe_id>/unsave", methods=["POST"])
@@ -344,7 +314,7 @@ def post_view(post_id):
     """View a single post"""
     post = Post.query.get_or_404(post_id)
     recipe = get_recipe_cached(post.spoonacular_id)
-    
+
     return render_template('post_view.html', post=post, recipe=recipe, Comment=Comment)
 
 
@@ -664,6 +634,204 @@ with app.app_context():
     print(f"Found {len(admins)} admin(s):")
     for admin in admins:
         print(f"  - {admin.username} ({admin.email})")
+
+
+# Week 9, 10 - newly added + modified Collection routes for the user dashboard overhaul
+
+from databasemodels import db, User, SavedRecipe, ShoppingList, Post, Comment, Collection
+
+# Helper function to ensure user has a default collection
+def ensure_default_collection(user_id):
+    """Create default 'My Recipes' collection if user doesn't have one."""
+    default = Collection.query.filter_by(user_id=user_id, is_default=True).first()
+    if not default:
+        default = Collection(
+            user_id=user_id,
+            name="My Recipes",
+            description="Your saved recipes",
+            is_default=True
+        )
+        db.session.add(default)
+        db.session.commit()
+    return default
+
+
+@app.route("/dashboard")
+@login_required
+def user_dashboard():
+    """Pinterest-style dashboard showing recipe collections."""
+    # Ensure user has default collection
+    ensure_default_collection(current_user.id)
+    
+    collections = Collection.query.filter_by(user_id=current_user.id).order_by(
+        Collection.is_default.desc(),  # Default collection first
+        Collection.created_at.desc()
+    ).all()
+    
+    return render_template("user/userdashboard.html", collections=collections)
+
+
+@app.route("/collections/create", methods=["POST"])
+@login_required
+def create_collection():
+    """Create a new recipe collection."""
+    name = request.form.get("name", "").strip()
+    description = request.form.get("description", "").strip()
+    
+    if not name:
+        flash("Collection name is required!", "danger")
+        return redirect(url_for("user_dashboard"))
+    
+    if len(name) > 100:
+        flash("Collection name is too long (max 100 characters).", "warning")
+        return redirect(url_for("user_dashboard"))
+    
+    collection = Collection(
+        user_id=current_user.id,
+        name=name,
+        description=description if description else None
+    )
+    
+    db.session.add(collection)
+    db.session.commit()
+    
+    flash(f"Collection '{name}' created! 📌", "success")
+    return redirect(url_for("user_dashboard"))
+
+
+@app.route("/collections/<int:collection_id>")
+@login_required
+def view_collection(collection_id):
+    """View all recipes in a specific collection."""
+    collection = Collection.query.get_or_404(collection_id)
+    
+    # Ensure user owns this collection
+    if collection.user_id != current_user.id:
+        flash("You don't have permission to view this collection.", "danger")
+        return redirect(url_for("user_dashboard"))
+    
+    recipes = collection.recipes.order_by(SavedRecipe.saved_at.desc()).all()
+    
+    return render_template("user/collection_view.html", collection=collection, recipes=recipes)
+
+
+@app.route("/collections/<int:collection_id>/edit", methods=["POST"])
+@login_required
+def edit_collection(collection_id):
+    """Edit a collection's name and description."""
+    collection = Collection.query.get_or_404(collection_id)
+    
+    if collection.user_id != current_user.id:
+        flash("You cannot edit another user's collection.", "danger")
+        return redirect(url_for("user_dashboard"))
+    
+    if collection.is_default:
+        flash("Cannot edit the default collection.", "warning")
+        return redirect(url_for("user_dashboard"))
+    
+    name = request.form.get("name", "").strip()
+    description = request.form.get("description", "").strip()
+    
+    if not name:
+        flash("Collection name cannot be empty.", "danger")
+        return redirect(url_for("user_dashboard"))
+    
+    collection.name = name
+    collection.description = description if description else None
+    db.session.commit()
+    
+    flash("Collection updated! ✏️", "success")
+    return redirect(url_for("user_dashboard"))
+
+
+@app.route("/collections/<int:collection_id>/delete", methods=["POST"])
+@login_required
+def delete_collection(collection_id):
+    """Delete a collection (moves recipes to default collection)."""
+    collection = Collection.query.get_or_404(collection_id)
+    
+    if collection.user_id != current_user.id:
+        flash("You cannot delete another user's collection.", "danger")
+        return redirect(url_for("user_dashboard"))
+    
+    if collection.is_default:
+        flash("Cannot delete the default collection.", "warning")
+        return redirect(url_for("user_dashboard"))
+    
+    # Move all recipes to default collection
+    default_collection = ensure_default_collection(current_user.id)
+    for recipe in collection.recipes.all():
+        recipe.collection_id = default_collection.id
+    
+    db.session.delete(collection)
+    db.session.commit()
+    
+    flash(f"Collection '{collection.name}' deleted. Recipes moved to 'My Recipes'.", "info")
+    return redirect(url_for("user_dashboard"))
+
+
+# MODIFY your existing save_recipe route to support collections:
+@app.route("/recipes/<int:recipe_id>/save", methods=["POST"])
+@login_required
+def save_recipe(recipe_id: int):
+    """Save recipe to a collection (with collection selection)."""
+    recipe_name = request.form.get("recipe_name", "").strip() or "Recipe"
+    recipe_image = request.form.get("recipe_image", "").strip()
+    collection_id = request.form.get("collection_id")
+    
+    # Check if already saved
+    existing = SavedRecipe.query.filter_by(
+        user_id=current_user.id, recipe_id=recipe_id
+    ).first()
+    if existing:
+        flash("Recipe already in your saved list.", "info")
+        return redirect(url_for("recipe_detail", recipe_id=recipe_id))
+    
+    # If no collection specified, use default
+    if not collection_id:
+        default_collection = ensure_default_collection(current_user.id)
+        collection_id = default_collection.id
+    
+    saved = SavedRecipe(
+        user_id=current_user.id,
+        recipe_id=recipe_id,
+        recipe_name=recipe_name,
+        recipe_image=recipe_image,
+        collection_id=collection_id
+    )
+    db.session.add(saved)
+    db.session.commit()
+    
+    flash("Recipe saved to your collection! 📌", "success")
+    return redirect(url_for("recipe_detail", recipe_id=recipe_id))
+
+
+@app.route("/recipes/<int:saved_recipe_id>/move", methods=["POST"])
+@login_required
+def move_recipe(saved_recipe_id):
+    """Move a saved recipe to a different collection."""
+    saved_recipe = SavedRecipe.query.get_or_404(saved_recipe_id)
+    
+    if saved_recipe.user_id != current_user.id:
+        flash("You cannot modify another user's recipes.", "danger")
+        return redirect(url_for("user_dashboard"))
+    
+    new_collection_id = request.form.get("collection_id")
+    if not new_collection_id:
+        flash("Please select a collection.", "warning")
+        return redirect(request.referrer or url_for("user_dashboard"))
+    
+    # Verify new collection belongs to user
+    new_collection = Collection.query.get_or_404(new_collection_id)
+    if new_collection.user_id != current_user.id:
+        flash("Invalid collection.", "danger")
+        return redirect(url_for("user_dashboard"))
+    
+    saved_recipe.collection_id = new_collection_id
+    db.session.commit()
+    
+    flash(f"Recipe moved to '{new_collection.name}'! 📦", "success")
+    return redirect(request.referrer or url_for("user_dashboard"))
 
 # -------------------------------------------------
 # Entry point

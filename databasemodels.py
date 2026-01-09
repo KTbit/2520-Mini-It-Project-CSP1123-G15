@@ -22,6 +22,7 @@ class User(db.Model, UserMixin):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     comments = db.relationship('Comment', backref='author', lazy='dynamic')
+    collections = db.relationship('Collection', backref='owner', lazy='dynamic')
 
     followed = db.relationship(
         'User', secondary=follows,
@@ -65,6 +66,25 @@ class RecipeCache(db.Model):
     last_fetched = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+
+# week 9 - tried to modify existing dashboard feature (more like pinterest; to make it differ from user profile)
+
+class Collection(db.Model):
+    """User-generated collections of recipes (like Pinterest boards)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    is_default = db.Column(db.Boolean, default=False) #the site automatically creates a board if the user has no previously created ones
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    #Relationship to recipes in this collection
+    recipes = db.relationship('SavedRecipe', backref='collection', lazy='dynamic')
+
+    def __repr__(self):
+        return f"<Collection {self.name!r}>"
+
+
 class SavedRecipe(db.Model):
    
 
@@ -72,6 +92,8 @@ class SavedRecipe(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     recipe_id = db.Column(db.Integer, nullable=False)  # Spoonacular recipe ID
     recipe_name = db.Column(db.String(200), nullable=False)
+    recipe_image = db.Column(db.String(500))
+    collection_id = db.Column(db.Integer, db.ForeignKey('collection.id')) 
     saved_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:

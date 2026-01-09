@@ -1,0 +1,178 @@
+{% extends "nav_base.html" %}
+{% block title %}{{ collection.name }} · My Collections{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{{ url_for('user_dashboard') }}">
+          <i class="bi bi-collection"></i> Collections
+        </a>
+      </li>
+      <li class="breadcrumb-item active">{{ collection.name }}</li>
+    </ol>
+  </nav>
+</div>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h2>
+      {{ collection.name }}
+      {% if collection.is_default %}
+      <span class="badge bg-primary">Default</span>
+      {% endif %}
+    </h2>
+    {% if collection.description %}
+    <p class="text-muted">{{ collection.description }}</p>
+    {% endif %}
+    <p class="text-muted">
+      <i class="bi bi-bookmark-fill"></i> {{ recipes|length }} recipes saved
+    </p>
+  </div>
+  
+  {% if not collection.is_default %}
+  <div class="btn-group">
+    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editCollectionModal">
+      <i class="bi bi-pencil"></i> Edit
+    </button>
+    <form method="post" action="{{ url_for('delete_collection', collection_id=collection.id) }}"
+          onsubmit="return confirm('Delete this collection? Recipes will be moved to My Recipes.');"
+          class="d-inline">
+      <button type="submit" class="btn btn-outline-danger">
+        <i class="bi bi-trash"></i> Delete
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Recipes Grid with Images! -->
+{% if recipes %}
+<div class="row g-4">
+  {% for saved in recipes %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100 shadow-sm hover-card">
+      <!-- Recipe Image -->
+      {% if saved.recipe_image %}
+      <img src="{{ saved.recipe_image }}" 
+           class="card-img-top" 
+           alt="{{ saved.recipe_name }}"
+           style="height: 200px; object-fit: cover;">
+      {% else %}
+      <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+           style="height: 200px;">
+        <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+      </div>
+      {% endif %}
+
+      <div class="card-body d-flex flex-column">
+        <h5 class="card-title">{{ saved.recipe_name }}</h5>
+        <p class="card-text small text-muted">
+          <i class="bi bi-clock"></i> Saved {{ saved.saved_at.strftime('%b %d, %Y') }}
+        </p>
+
+        <!-- Actions -->
+        <div class="mt-auto">
+          <a href="{{ url_for('recipe_detail', recipe_id=saved.recipe_id) }}" 
+             class="btn btn-primary btn-sm w-100 mb-2">
+            <i class="bi bi-eye"></i> View Recipe
+          </a>
+          
+          <div class="btn-group w-100">
+            <!-- Move to Collection Dropdown -->
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                    type="button" 
+                    data-bs-toggle="dropdown">
+              <i class="bi bi-folder"></i> Move
+            </button>
+            <ul class="dropdown-menu">
+              {% for col in current_user.collections.all() %}
+              {% if col.id != collection.id %}
+              <li>
+                <form method="post" action="{{ url_for('move_recipe', saved_recipe_id=saved.id) }}">
+                  <input type="hidden" name="collection_id" value="{{ col.id }}">
+                  <button type="submit" class="dropdown-item">
+                    {% if col.is_default %}
+                    <i class="bi bi-star-fill text-warning"></i>
+                    {% else %}
+                    <i class="bi bi-folder"></i>
+                    {% endif %}
+                    {{ col.name }}
+                  </button>
+                </form>
+              </li>
+              {% endif %}
+              {% endfor %}
+            </ul>
+
+            <!-- Remove from Collection -->
+            <form method="post" 
+                  action="{{ url_for('unsave_recipe', recipe_id=saved.recipe_id) }}"
+                  onsubmit="return confirm('Remove this recipe from {{ collection.name }}?');"
+                  class="flex-grow-1">
+              <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+  <i class="bi bi-inbox" style="font-size: 4rem; color: #ddd;"></i>
+  <h4 class="mt-3 text-muted">No recipes in this collection yet!</h4>
+  <p class="text-muted">Browse recipes and save them to this collection.</p>
+  <a href="{{ url_for('recipe_browse') }}" class="btn btn-primary mt-2">
+    <i class="bi bi-search"></i> Browse Recipes
+  </a>
+</div>
+{% endif %}
+
+<!-- Edit Collection Modal -->
+{% if not collection.is_default %}
+<div class="modal fade" id="editCollectionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Collection</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('edit_collection', collection_id=collection.id) }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Collection Name</label>
+            <input type="text" name="name" class="form-control" 
+                   value="{{ collection.name }}" required maxlength="100">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description (optional)</label>
+            <textarea name="description" class="form-control" rows="3" 
+                      maxlength="500">{{ collection.description or '' }}</textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<style>
+.hover-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+}
+</style>
+{% endblock %}
