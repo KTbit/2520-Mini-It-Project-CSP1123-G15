@@ -616,25 +616,6 @@ def admin_delete_user(user_id: int):
     return redirect(url_for('admin_dashboard'))
 
 
-from app import app, db
-from databasemodels import Post 
-
-with app.app_context():
-    posts = Post.query.all()
-    print(f"Total posts in database: {len(posts)}")
-    for post in posts:
-        print(f"-{post.title} by user {post.user_id}")
-
-
-from app import app, db
-from databasemodels import User
-
-with app.app_context():
-    admins = User.query.filter_by(is_admin=True).all()
-    print(f"Found {len(admins)} admin(s):")
-    for admin in admins:
-        print(f"  - {admin.username} ({admin.email})")
-
 
 # Week 9, 10 - newly added + modified Collection routes for the user dashboard overhaul
 
