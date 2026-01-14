@@ -145,6 +145,7 @@ def recipe_detail(recipe_id: int):
 
     # Check if this recipe is already saved by the current user
     is_saved = False
+    user_collections = []
     if current_user.is_authenticated:
         is_saved = (
             SavedRecipe.query.filter_by(
@@ -152,11 +153,16 @@ def recipe_detail(recipe_id: int):
             ).first()
             is not None
         )
+        #Get the user's collections for the save button dropdown on a recipe
+        user_collections = Collection.query.filter_by(
+            user_id=current_user.id
+        ).order_by(Collection.is_default.desc(), Collection.created_at.desc()).all()
 
     return render_template(
         "recipe_section/recipedetail.html",
         recipe=details,
         is_saved=is_saved,
+        user_collections=user_collections,
     )
 
 
@@ -353,7 +359,7 @@ def unfollow(user_id):
 
 # Week 10 - refurbished comments; route and appearance-wise
 
-from databasemodels import db, User, SavedRecipe, ShoppingList, Post, Comment
+from databasemodels import db, User, SavedRecipe, ShoppingList, Post, Comment, Collection
 
 @app.route('/posts/<int:post_id>/comment', methods=['POST'])
 @login_required
@@ -755,7 +761,6 @@ def delete_collection(collection_id):
 @app.route("/recipes/<int:recipe_id>/save", methods=["POST"])
 @login_required
 def save_recipe(recipe_id: int):
-    """Save recipe to a collection (with collection selection)."""
     recipe_name = request.form.get("recipe_name", "").strip() or "Recipe"
     recipe_image = request.form.get("recipe_image", "").strip()
     collection_id = request.form.get("collection_id")
@@ -783,7 +788,7 @@ def save_recipe(recipe_id: int):
     db.session.add(saved)
     db.session.commit()
     
-    flash("Recipe saved to your collection! 📌", "success")
+    flash("Recipe saved to your collection!", "success")
     return redirect(url_for("recipe_detail", recipe_id=recipe_id))
 
 

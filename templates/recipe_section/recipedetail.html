@@ -24,7 +24,7 @@
             <i class="bi bi-heart-fill"></i> Save to Collection
           </button>
           <ul class="dropdown-menu w-100">
-            {% for collection in current_user.collections.order_by(Collection.is_default.desc()).all() %}
+            {% for collection in user_collections %}
             <li>
               <form method="post" action="{{ url_for('save_recipe', recipe_id=recipe.id) }}">
                 <input type="hidden" name="recipe_name" value="{{ recipe.title }}">
