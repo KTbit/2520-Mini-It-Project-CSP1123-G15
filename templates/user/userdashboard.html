@@ -5,21 +5,21 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h2><i class="bi bi-collection"></i> My Recipe Collections</h2>
-    <p class="text-muted">Organize your saved recipes like Pinterest boards!</p>
+    <p class="text-muted">Organize your saved recipes here</p>
   </div>
   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newCollectionModal">
     <i class="bi bi-plus-circle"></i> New Collection
   </button>
 </div>
 
-<!-- Collections Grid -->
+<!-- Collections grid -->
 {% if collections %}
 <div class="row g-4">
   {% for collection in collections %}
   <div class="col-md-6 col-lg-4">
     <a href="{{ url_for('view_collection', collection_id=collection.id) }}" class="text-decoration-none">
       <div class="card h-100 shadow-sm hover-card">
-        <!-- Collection Preview (show first 4 recipe images) -->
+        <!-- Collection preview (show first 4 recipe images) -->
         <div class="collection-preview">
           {% set preview_recipes = collection.recipes.limit(4).all() %}
           {% if preview_recipes %}
@@ -64,11 +64,11 @@
           </p>
         </div>
 
-        <!-- Collection Actions -->
+        <!-- Collection actions -->
         <div class="card-footer bg-white border-top-0">
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-primary flex-grow-1"
-                    onclick="event.preventDefault(); window.location.href='{{ url_for('view_collection', collection_id=collection.id) }}'">
+                    onclick="event.preventDefault(); window.location.href='{{ url_for('view_collection', collection_id=collection.id) }}'"> <!--possible faux error?-->
               <i class="bi bi-eye"></i> View
             </button>
             {% if not collection.is_default %}

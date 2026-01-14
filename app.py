@@ -403,7 +403,7 @@ def delete_comment(post_id, comment_id):
 
 
 # -------------------------------------------------
-# Routes: Shopping List (Week 4 feature)
+# Routes: Shopping List (Week 4 feature) ---FYI: 'shopping list' changed to 'menu items list' in week 7
 # -------------------------------------------------
 @app.route("/shopping-list")
 @login_required
