@@ -1,117 +1,36 @@
 {% extends "nav_base.html" %}
-{% block title %}Admin Dashboard{% endblock %}
+{% block title %}Admin Dashboard · Recipe Finder{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <h2><i class="bi bi-shield-lock"></i> Admin Dashboard</h2>
-    <p class="text-muted">Welcome, {{ current_user.username }}! Manage users and content here.</p>
-    
-    <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="users-tab" data-bs-toggle="tab" 
-                    data-bs-target="#users" type="button">
-                <i class="bi bi-people"></i> Users ({{ users|length }})
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="posts-tab" data-bs-toggle="tab" 
-                    data-bs-target="#posts" type="button">
-                <i class="bi bi-file-post"></i> Posts
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="stats-tab" data-bs-toggle="tab" 
-                    data-bs-target="#stats" type="button">
-                <i class="bi bi-bar-chart"></i> Statistics
-            </button>
-        </li>
-    </ul>
-    
-    <div class="tab-content" id="adminTabsContent">
-        <!-- Users Tab -->
-        <div class="tab-pane fade show active" id="users" role="tabpanel">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Username</th>
-                            <th>Email</th>
-                            <th>Admin</th>
-                            <th>Joined</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users %}
-                        <tr>
-                            <td>{{ user.id }}</td>
-                            <td>
-                                <a href="{{ url_for('profile', user_id=user.id) }}">
-                                    {{ user.username }}
-                                </a>
-                            </td>
-                            <td>{{ user.email }}</td>
-                            <td>
-                                {% if user.is_admin %}
-                                    <span class="badge bg-danger">Admin</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">User</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</td>
-                            <td>
-                                {% if not user.is_admin %}
-                                <form method="post" action="{{ url_for('admin_delete_user', user_id=user.id) }}" 
-                                      style="display:inline;" onsubmit="return confirm('Delete this user?')">
-                                    <button type="submit" class="btn btn-sm btn-danger">
-                                        <i class="bi bi-trash"></i> Delete
-                                    </button>
-                                </form>
-                                {% else %}
-                                    <span class="text-muted">Protected</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        
-        <!-- Posts Tab (placeholder) -->
-        <div class="tab-pane fade" id="posts" role="tabpanel">
-            <p class="text-muted">Post moderation coming soon...</p>
-        </div>
-        
-        <!-- Statistics Tab -->
-        <div class="tab-pane fade" id="stats" role="tabpanel">
-            <div class="row">
-                <div class="col-md-4 mb-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h3>{{ users|length }}</h3>
-                            <p class="text-muted">Total Users</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h3>{{ users|selectattr('is_admin')|list|length }}</h3>
-                            <p class="text-muted">Admins</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h3>{{ users|rejectattr('is_admin')|list|length }}</h3>
-                            <p class="text-muted">Regular Users</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+<h2 class="mb-3">Admin Dashboard</h2>
+<p class="text-muted">Manage users in the system.</p>
+
+<table class="table table-striped table-hover">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Username</th>
+      <th scope="col">Email</th>
+      <th scope="col">Admin?</th>
+      <th scope="col">Joined</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <th scope="row">{{ loop.index }}</th>
+      <td>{{ u.username }}</td>
+      <td>{{ u.email }}</td>
+      <td>
+        {% if u.is_admin %}
+        <span class="badge bg-success">Admin</span>
+        {% else %}
+        <span class="badge bg-secondary">User</span>
+        {% endif %}
+      </td>
+      <td>{{ u.created_at.strftime("%Y-%m-%d %H:%M") if u.created_at else "-" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}

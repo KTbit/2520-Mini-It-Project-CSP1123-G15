@@ -1,4 +1,7 @@
 import json
+import io
+import os
+import re
 
 from flask import (
     Flask,
@@ -7,8 +10,7 @@ from flask import (
     redirect,
     url_for,
     flash,
-    abort,
-    make_response
+    send_file,
 )
 from flask_login import (
     LoginManager,
@@ -17,102 +19,219 @@ from flask_login import (
     login_required,
     current_user,
 )
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
 
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from io import BytesIO
-
-from functools import wraps
-from databasemodels import db, User, SavedRecipe, ShoppingList, Post
+from databasemodels import db, User, SavedRecipe, ShoppingList, ManualShoppingItem
 from config import Config
 from utilities import search_recipes_by_ingredients, get_recipe_details
-from utilities import get_recipe_cached
-
-
 
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Initialise extensions
 db.init_app(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = "user_login"  # redirect here when login is required
+login_manager.login_view = "user_login"
 
 
 @login_manager.user_loader
 def load_user(user_id: str):
-    """Callback for Flask‑Login to load a user from the DB."""
     try:
         return User.query.get(int(user_id))
     except (TypeError, ValueError):
         return None
 
 
-# Create DB tables if they do not exist
 with app.app_context():
     db.create_all()
 
 
+# -------------------------------------------------
+# Helpers
+# -------------------------------------------------
+def _logo_path() -> str:
+    """Absolute path to the MMU logo used in PDF exports."""
+    return os.path.join(app.root_path, "static", "img", "mmu_logo.png")
 
+
+def _draw_pdf_header(pdf: canvas.Canvas, width: float, height: float, username: str | None):
+    """Draws a consistent header (logo + title + user) on the current page.
+
+    Returns the y position where body content should start.
+    """
+    # Logo
+    logo = _logo_path()
+    header_top = height - 30
+    if os.path.exists(logo):
+        try:
+            img = ImageReader(logo)
+            iw, ih = img.getSize()
+            # Fit logo nicely in the header
+            target_h = 40
+            target_w = max(1, int((iw / max(1, ih)) * target_h))
+            pdf.drawImage(
+                img,
+                50,
+                header_top - target_h,
+                width=target_w,
+                height=target_h,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+        except Exception:
+            # If image fails to load, continue without logo.
+            pass
+
+    # Title + user
+    y = height - 90
+    pdf.setFont("Helvetica-Bold", 16)
+    pdf.drawString(50, y, "Shopping List")
+    pdf.setFont("Helvetica", 10)
+    y -= 18
+    if username:
+        pdf.drawString(50, y, f"User: {username}")
+        y -= 22
+    else:
+        y -= 10
+
+    # Divider line
+    pdf.setLineWidth(0.6)
+    pdf.line(50, y, width - 50, y)
+    y -= 22
+    return y
+
+
+def _extract_ingredients(text: str) -> str:
+    """Best-effort extraction of ingredients from a user chat message."""
+    t = text.strip()
+    # common patterns: "find recipes with chicken, rice" / "search: chicken and rice"
+    m = re.search(r"\bwith\b(.+)$", t, flags=re.IGNORECASE)
+    if m:
+        t = m.group(1)
+    m = re.search(r"\bingredients?\b\s*[:\-]?\s*(.+)$", t, flags=re.IGNORECASE)
+    if m:
+        t = m.group(1)
+    # split on commas / and
+    parts = re.split(r",|\band\b|\+", t, flags=re.IGNORECASE)
+    cleaned = [p.strip() for p in parts if p.strip()]
+    return ", ".join(cleaned[:8])  # keep it reasonable
+
+
+def _chatbot_reply(message: str) -> str:
+    msg = (message or "").strip()
+    if not msg:
+        return "Please type a question."
+
+    low = msg.lower()
+
+    # Help / capabilities
+    if any(k in low for k in ["help", "what can you do", "commands", "how to use"]):
+        return (
+            "Hi! I can help you use Recipe Finder. Try:\n"
+            "• **Find recipes**: `find recipes with chicken, rice`\n"
+            "• **Recipe details**: `recipe 716429` (use the Recipe # you see)\n"
+            "• **Shopping list PDF**: ask `how to download pdf`\n"
+            "• **Manual items**: open Shopping List and add items under Manual Items\n"
+            "\nTip: Use commas between ingredients for better results."
+        )
+
+    # PDF guidance
+    if "pdf" in low or "download" in low or "export" in low:
+        return (
+            "To download your shopping list as a PDF: open **Shopping List** and click "
+            "**Download PDF** (top-right). The PDF now includes your MMU logo in the header."
+        )
+
+    # Manual listing guidance
+    if "manual" in low or "manual listing" in low or "add item" in low or "shopping item" in low:
+        return (
+            "Manual Listing lets you add your own shopping items (not from a recipe).\n"
+            "Go to **Shopping List** → under **Manual Items** fill Item Name, Quantity, Notes → click **Add**.\n"
+            "You can also remove an item using the **Remove** button."
+        )
+
+    # Recipe detail by id ("recipe 123", "recipe #123")
+    m = re.search(r"\brecipe\b\s*#?\s*(\d{3,})", low)
+    if m:
+        rid = int(m.group(1))
+        details = get_recipe_details(rid)
+        if details is None:
+            return "I couldn't fetch that recipe right now. Please try again in a minute."
+        title = details.get("title", "Recipe")
+        ready = details.get("readyInMinutes")
+        servings = details.get("servings")
+        src = details.get("sourceUrl")
+        bits = [f"**{title}**"]
+        if ready:
+            bits.append(f"Ready in: {ready} minutes")
+        if servings:
+            bits.append(f"Servings: {servings}")
+        if src:
+            bits.append(f"Source: {src}")
+        bits.append(f"Open in the app: /recipes/{rid}")
+        return "\n".join(bits)
+
+    # Find/search recipes by ingredients
+    if any(k in low for k in ["find", "search", "recipes", "recipe"]):
+        ingredients = _extract_ingredients(msg)
+        if ingredients:
+            recipes = search_recipes_by_ingredients(ingredients, number=5)
+            if not recipes:
+                return (
+                    "I couldn't find recipes for those ingredients (or the API key may be missing). "
+                    "Try different ingredients, or check your Spoonacular API key in `config.py`."
+                )
+            lines = [f"Here are some recipes for: **{ingredients}**"]
+            for r in recipes:
+                title = r.get("title", "Recipe")
+                rid = r.get("id")
+                if rid:
+                    lines.append(f"• {title} — /recipes/{rid}")
+                else:
+                    lines.append(f"• {title}")
+            return "\n".join(lines)
+
+    # Default
+    return (
+        "I can help you search recipes, view recipe details, and download your shopping list PDF. "
+        "Type `help` to see examples."
+    )
+
+
+# -------------------------------------------------
+# Public routes
+# -------------------------------------------------
 @app.route("/")
 def index():
-    #get recent posts
-    recent_posts = Post.query.order_by(Post.created_at.desc()).limit(6).all()
+    return render_template("index.html")
 
-    #trying to debug
-    print(f"[DEBUG] Passing {len(recent_posts)} posts to homepage")
 
-    return render_template("index.html", recent_posts = recent_posts)
+# -------------------------------------------------
+# Chatbot API (simple, local rule-based assistant)
+# -------------------------------------------------
+@app.route("/chatbot", methods=["POST"])
+def chatbot_api():
+    payload = request.get_json(silent=True) or {}
+    message = (payload.get("message") or "").strip()
+    return {"reply": _chatbot_reply(message)}
 
-#WEEK 5 - added category filtering based on price and time taken - lowest to highest, vice versa (modified recipebrowse route)
 
 @app.route("/recipes/browse")
 def recipe_browse():
     ingredients = request.args.get("ingredients", "", type=str).strip()
-    sort_by = request.args.get("sort", "relevance")
-    max_time = request.args.get("max_time", type=int)
-    max_price = request.args.get("max_price", type=float)
-    diet = request.args.get("diet", "")
-    
     recipes = []
-
     if ingredients:
-        # Search recipes
-        recipes = search_recipes_by_ingredients(ingredients, number=20)
-        
-        # Apply time filter
-        if max_time and recipes:
-            recipes = [r for r in recipes if r.get('readyInMinutes', 999) <= max_time]
-        
-        # Apply price filter (pricePerServing is in cents)
-        if max_price and recipes:
-            recipes = [r for r in recipes if r.get('pricePerServing', 9999) <= max_price * 100]
-        
-        # Apply sorting
-        if sort_by == "time_asc" and recipes:
-            recipes = sorted(recipes, key=lambda r: r.get('readyInMinutes', 999))
-        elif sort_by == "time_desc" and recipes:
-            recipes = sorted(recipes, key=lambda r: r.get('readyInMinutes', 0), reverse=True)
-        elif sort_by == "price_asc" and recipes:
-            recipes = sorted(recipes, key=lambda r: r.get('pricePerServing', 999))
-        elif sort_by == "price_desc" and recipes:
-            recipes = sorted(recipes, key=lambda r: r.get('pricePerServing', 0), reverse=True)
-
+        recipes = search_recipes_by_ingredients(ingredients, number=12)
     return render_template(
         "recipe_section/recipebrowse.html",
         ingredients=ingredients,
         recipes=recipes,
-        sort_by=sort_by,
-        max_time=max_time,
-        max_price=max_price,
-        diet=diet,
     )
+
 
 @app.route("/recipes/<int:recipe_id>")
 def recipe_detail(recipe_id: int):
@@ -121,7 +240,6 @@ def recipe_detail(recipe_id: int):
         flash("Could not load recipe details. Please try again later.", "danger")
         return redirect(url_for("index"))
 
-    # Check if this recipe is already saved by the current user
     is_saved = False
     if current_user.is_authenticated:
         is_saved = (
@@ -138,7 +256,9 @@ def recipe_detail(recipe_id: int):
     )
 
 
-
+# -------------------------------------------------
+# Authentication
+# -------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
 def user_register():
     if current_user.is_authenticated:
@@ -163,7 +283,6 @@ def user_register():
 
         new_user = User(username=username, email=email)
         new_user.set_password(password)
-
         db.session.add(new_user)
         db.session.commit()
 
@@ -205,11 +324,13 @@ def user_logout():
 @app.route("/dashboard")
 @login_required
 def user_dashboard():
-    """Simple user dashboard showing saved recipes."""
     saved = SavedRecipe.query.filter_by(user_id=current_user.id).all()
     return render_template("user/userdashboard.html", saved_recipes=saved)
 
 
+# -------------------------------------------------
+# Saved recipes
+# -------------------------------------------------
 @app.route("/recipes/<int:recipe_id>/save", methods=["POST"])
 @login_required
 def save_recipe(recipe_id: int):
@@ -237,7 +358,6 @@ def save_recipe(recipe_id: int):
 @app.route("/recipes/<int:recipe_id>/unsave", methods=["POST"])
 @login_required
 def unsave_recipe(recipe_id: int):
-    """Remove a saved recipe from the current user's favourites."""
     saved = SavedRecipe.query.filter_by(
         user_id=current_user.id, recipe_id=recipe_id
     ).first()
@@ -250,138 +370,60 @@ def unsave_recipe(recipe_id: int):
     flash("Recipe removed from your favourites.", "success")
     return redirect(url_for("recipe_detail", recipe_id=recipe_id))
 
-# User post creation / deletion feature - week 5 update
-
-@app.route('/posts/create', methods=['POST'])
-@login_required
-def create_post():
-    recipe_id = request.form.get('recipe_id')  # <-- if not working..change to spoonacular_id
-    
-    if not recipe_id:
-        flash("No recipe specified!", "danger")
-        return redirect(url_for('index'))
-    
-    # Fetch recipe info
-    recipe = get_recipe_cached(int(recipe_id))
-    
-    if not recipe:
-        flash("Could not fetch recipe details!", "danger")
-        return redirect(url_for('index'))
-    
-    # Check if user already posted this recipe
-    existing = Post.query.filter_by(
-        user_id=current_user.id, 
-        spoonacular_id=int(recipe_id)
-    ).first()
-    
-    if existing:
-        flash("You've already shared this recipe!", "info")
-        return redirect(url_for('post_view', post_id=existing.id))
-    
-    # Create post
-    post = Post(
-        user_id=current_user.id, 
-        spoonacular_id=int(recipe_id),
-        title=recipe.get('title', 'Untitled Recipe'), 
-        image=recipe.get('image')
-    )
-    
-    db.session.add(post)
-    db.session.commit()
-    
-    flash("Recipe shared successfully! 🎉", "success")
-    return redirect(url_for('post_view', post_id=post.id))
-
-
-@app.route('/posts/<int:post_id>/delete', methods=['POST'])
-@login_required
-def delete_post(post_id):
-    p = Post.query.get_or_404(post_id)
-    if p.author != current_user and not current_user.is_admin:
-        abort(403)
-    db.session.delete(p); db.session.commit()
-    return redirect(url_for('index'))
-
-@app.route('/posts')
-def posts_feed():
-    """Show all posts from users you follow (or all posts for now)"""
-    if current_user.is_authenticated:
-        # Show posts from followed users
-        posts = Post.query.filter(
-            Post.user_id.in_([u.id for u in current_user.followed.all()])
-        ).order_by(Post.created_at.desc()).all()
-    else:
-        # Show all public posts
-        posts = Post.query.order_by(Post.created_at.desc()).limit(20).all()
-    
-    return render_template('posts_feed.html', posts=posts)
-
-
-@app.route('/posts/<int:post_id>')
-def post_view(post_id):
-    """View a single post"""
-    post = Post.query.get_or_404(post_id)
-    recipe = get_recipe_cached(post.spoonacular_id)
-    return render_template('post_view.html', post=post, recipe=recipe)
-
-
-@app.route('/profile/<int:user_id>')
-def profile(user_id):
-    """View a user's profile"""
-    user = User.query.get_or_404(user_id)
-    posts = Post.query.filter_by(user_id=user_id).order_by(Post.created_at.desc()).all()
-    
-    is_following = False
-    if current_user.is_authenticated:
-        is_following = current_user.followed.filter_by(id=user_id).first() is not None
-    
-    return render_template('user/profile.html', user=user, posts=posts, is_following=is_following)
-
-@app.route('/follow/<int:user_id>', methods=['POST'])
-@login_required
-def follow(user_id):
-    user_to_follow = User.query.get_or_404(user_id)
-    if user_to_follow == current_user:
-        flash("Can't follow yourself", 'warning')
-        return redirect(url_for('profile', user_id=user_id))
-    if not current_user.followed.filter_by(id=user_to_follow.id).first():
-        current_user.followed.append(user_to_follow)
-        db.session.commit()
-    return redirect(url_for('profile', user_id=user_id))
-
-@app.route('/unfollow/<int:user_id>', methods=['POST'])
-@login_required
-def unfollow(user_id):
-    user = User.query.get_or_404(user_id)
-    if current_user.followed.filter_by(id=user.id).first():
-        current_user.followed.remove(user)
-        db.session.commit()
-    return redirect(url_for('profile', user_id=user_id))
-
-
 
 # -------------------------------------------------
-# Routes: Shopping List (Week 4 feature)
+# Shopping List (Week 4)
 # -------------------------------------------------
 @app.route("/shopping-list")
 @login_required
 def shopping_list():
-    """Display the current user's shopping list."""
     items = ShoppingList.query.filter_by(user_id=current_user.id).order_by(
         ShoppingList.created_at.desc()
     ).all()
-    return render_template("user/shopping_list.html", items=items)
+    manual_items = ManualShoppingItem.query.filter_by(user_id=current_user.id).order_by(
+        ManualShoppingItem.created_at.desc()
+    ).all()
+    return render_template("user/shopping_list.html", items=items, manual_items=manual_items)
 
 
+
+@app.route("/shopping-list/manual/add", methods=["POST"])
+@login_required
+def shopping_list_manual_add():
+    name = (request.form.get("item_name") or "").strip()
+    quantity = (request.form.get("quantity") or "").strip()
+    notes = (request.form.get("notes") or "").strip()
+
+    if not name:
+        flash("Please enter an item name.", "warning")
+        return redirect(url_for("shopping_list"))
+
+    item = ManualShoppingItem(
+        user_id=current_user.id,
+        item_name=name,
+        quantity=quantity or None,
+        notes=notes or None,
+    )
+    db.session.add(item)
+    db.session.commit()
+    flash("Manual item added to your shopping list.", "success")
+    return redirect(url_for("shopping_list"))
+
+
+@app.route("/shopping-list/manual/<int:item_id>/remove", methods=["POST"])
+@login_required
+def shopping_list_manual_remove(item_id: int):
+    item = ManualShoppingItem.query.filter_by(id=item_id, user_id=current_user.id).first()
+    if not item:
+        flash("Item not found.", "warning")
+        return redirect(url_for("shopping_list"))
+    db.session.delete(item)
+    db.session.commit()
+    flash("Manual item removed.", "success")
+    return redirect(url_for("shopping_list"))
 @app.route("/recipes/<int:recipe_id>/add-to-shopping-list", methods=["POST"])
 @login_required
 def add_to_shopping_list(recipe_id: int):
-    """Add a recipe's ingredients to the current user's shopping list.
-
-    For simplicity, we fetch the recipe details again from Spoonacular here and
-    store the ingredient strings as JSON.
-    """
-    # Check if already in shopping list
     existing = ShoppingList.query.filter_by(
         user_id=current_user.id, recipe_id=recipe_id
     ).first()
@@ -416,88 +458,10 @@ def add_to_shopping_list(recipe_id: int):
     flash("Recipe added to your shopping list.", "success")
     return redirect(url_for("shopping_list"))
 
-@app.route("/shopping-list/pdf")
-@login_required
-def shopping_list_pdf():
-    """Generate and download shopping list as PDF"""
-    
-    items = ShoppingList.query.filter_by(user_id=current_user.id).order_by(
-        ShoppingList.created_at.desc()
-    ).all()
-    
-    if not items:
-        flash('Your shopping list is empty!', 'info')
-        return redirect(url_for('shopping_list'))
-    
-    # Create PDF in memory
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch)
-    elements = []
-    
-    # Styles
-    styles = getSampleStyleSheet()
-    title_style = styles['Title']
-    
-    # Add title
-    title = Paragraph(f"Shopping List - {current_user.username}", title_style)
-    elements.append(title)
-    elements.append(Spacer(1, 0.3 * inch))
-    
-    # Process each recipe in the shopping list
-    for item in items:
-        # Recipe name as a heading
-        recipe_heading = Paragraph(
-            f"<b>{item.recipe_name}</b> (Recipe #{item.recipe_id})",
-            styles['Heading2']
-        )
-        elements.append(recipe_heading)
-        elements.append(Spacer(1, 0.1 * inch))
-        
-        # Get ingredients
-        ingredients = item.ingredients()
-        
-        if ingredients:
-            # Create table data
-            data = [['☐', 'Ingredient']]  # Header
-            for ing in ingredients:
-                data.append(['☐', ing])
-            
-            # Create table
-            table = Table(data, colWidths=[0.4*inch, 5*inch])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ]))
-            
-            elements.append(table)
-            elements.append(Spacer(1, 0.3 * inch))
-    
-    # Build PDF
-    doc.build(elements)
-    
-    # Get PDF data
-    pdf_data = buffer.getvalue()
-    buffer.close()
-    
-    # Create response
-    response = make_response(pdf_data)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'attachment; filename=shopping_list_{current_user.username}.pdf'
-    
-    return response
-
-
 
 @app.route("/shopping-list/<int:item_id>/remove", methods=["POST"])
 @login_required
 def remove_from_shopping_list(item_id: int):
-    """Remove an entry from the current user's shopping list."""
     item = ShoppingList.query.get_or_404(item_id)
     if item.user_id != current_user.id:
         flash("You cannot modify another user's shopping list.", "danger")
@@ -510,20 +474,86 @@ def remove_from_shopping_list(item_id: int):
 
 
 # -------------------------------------------------
-# Routes: Admin
+# Week 5: Shopping List PDF export
 # -------------------------------------------------
+@app.route("/shopping-list/pdf")
+@login_required
+def shopping_list_pdf():
+    items = ShoppingList.query.filter_by(user_id=current_user.id).order_by(
+        ShoppingList.created_at.asc()
+    ).all()
+
+    manual_items = ManualShoppingItem.query.filter_by(user_id=current_user.id).order_by(
+        ManualShoppingItem.created_at.asc()
+    ).all()
+
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    # Header (logo + title) on the first page
+    y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
+
+    if not items:
+        pdf.drawString(50, y, "Your shopping list is currently empty.")
+    else:
+        for item in items:
+            if y < 80:
+                pdf.showPage()
+                y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
+            pdf.setFont("Helvetica-Bold", 12)
+            pdf.drawString(50, y, f"- {item.recipe_name}")
+            y -= 18
+            pdf.setFont("Helvetica", 10)
+            for ing in item.ingredients():
+                text = f"• {ing}"
+                max_chars = 90
+                lines = [text[i:i+max_chars] for i in range(0, len(text), max_chars)]
+                for line in lines:
+                    if y < 60:
+                        pdf.showPage()
+                        y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
+                    pdf.drawString(70, y, line)
+                    y -= 14
+            y -= 10
 
 
-def admin_required(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            abort(403)
-        return f(*args, **kwargs)
-    return wrapper
+    # Manual items section
+    if manual_items:
+        if y < 120:
+            pdf.showPage()
+            y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
+        pdf.setFont("Helvetica-Bold", 13)
+        pdf.drawString(50, y, "Manual Items")
+        y -= 18
+        pdf.setFont("Helvetica", 11)
+        for mi in manual_items:
+            if y < 80:
+                pdf.showPage()
+                y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
+                pdf.setFont("Helvetica", 11)
+            line = f"• {mi.item_name}"
+            if mi.quantity:
+                line += f" ({mi.quantity})"
+            if mi.notes:
+                line += f" — {mi.notes}"
+            pdf.drawString(50, y, line[:110])
+            y -= 14
+    pdf.save()
+    buffer.seek(0)
+
+    filename = "shopping_list.pdf"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf",
+    )
 
 
-
+# -------------------------------------------------
+# Admin (Week 6 skeleton, already in place)
+# -------------------------------------------------
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if current_user.is_authenticated and current_user.is_admin:
@@ -547,7 +577,6 @@ def admin_login():
 
 @app.route("/admin/dashboard")
 @login_required
-@admin_required
 def admin_dashboard():
     if not current_user.is_admin:
         flash("Access denied. Admin only.", "danger")
@@ -556,45 +585,6 @@ def admin_dashboard():
     users = User.query.order_by(User.created_at.desc()).all()
     return render_template("admin/admin_dashboard.html", users=users)
 
-#week 5 - added admin delete user route
-@app.route("/admin/users/<int:user_id>/delete", methods=["POST"])
-@login_required
-@admin_required
-def admin_delete_user(user_id: int):
-    """Delete a user (admin only)"""
-    user = User.query.get_or_404(user_id)
-    
-    if user.is_admin:
-        flash("Cannot delete admin users.", "danger")
-        return redirect(url_for('admin_dashboard'))
-    
-    db.session.delete(user)
-    db.session.commit()
-    flash(f"User '{user.username}' has been deleted.", "success")
-    return redirect(url_for('admin_dashboard'))
 
-
-from app import app, db
-from databasemodels import Post 
-
-with app.app_context():
-    posts = Post.query.all()
-    print(f"Total posts in database: {len(posts)}")
-    for post in posts:
-        print(f"-{post.title} by user {post.user_id}")
-
-
-from app import app, db
-from databasemodels import User
-
-with app.app_context():
-    admins = User.query.filter_by(is_admin=True).all()
-    print(f"Found {len(admins)} admin(s):")
-    for admin in admins:
-        print(f"  - {admin.username} ({admin.email})")
-
-# -------------------------------------------------
-# Entry point
-# -------------------------------------------------
 if __name__ == "__main__":
     app.run(debug=True)

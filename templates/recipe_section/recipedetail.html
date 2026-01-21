@@ -29,15 +29,6 @@
           {% endif %}
         </form>
 
-      <!--week 5 user post button creation-->
-        <form method="post" action="{{ url_for('create_post') }}" style="display:inline;">
-        <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
-        <button type="submit" class="btn btn-success">
-            <i class="bi bi-share"></i> Share as Post
-        </button>
-    </form>
-
-
         <form method="post"
               action="{{ url_for('add_to_shopping_list', recipe_id=recipe.id) }}"
               class="mt-2">
@@ -91,5 +82,3 @@
   </div>
 </div>
 {% endblock %}
-
-

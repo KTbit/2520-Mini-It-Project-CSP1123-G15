@@ -46,3 +46,90 @@ footer {
     padding-left: 1.2rem;
 }
 
+/* -------------------------------------------------
+   Chatbot widget (floating)
+-------------------------------------------------- */
+.cb-toggle {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 1050;
+    border-radius: 999px;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.cb-panel {
+    position: fixed;
+    right: 18px;
+    bottom: 78px;
+    width: 340px;
+    max-width: calc(100vw - 36px);
+    height: 420px;
+    max-height: calc(100vh - 140px);
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 16px;
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    display: none;
+    z-index: 1050;
+}
+
+.cb-panel.cb-open {
+    display: flex;
+    flex-direction: column;
+}
+
+.cb-header {
+    padding: 12px 14px;
+    background: #212529;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.cb-messages {
+    padding: 12px;
+    overflow-y: auto;
+    flex: 1;
+    background: #f8f9fa;
+}
+
+.cb-msg {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.cb-msg.cb-user {
+    justify-content: flex-end;
+}
+
+.cb-bubble {
+    max-width: 85%;
+    padding: 10px 12px;
+    border-radius: 14px;
+    line-height: 1.25;
+    font-size: 0.92rem;
+    border: 1px solid rgba(0,0,0,0.08);
+    background: #fff;
+}
+
+.cb-user .cb-bubble {
+    background: #e9f2ff;
+}
+
+.cb-footer {
+    padding: 10px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    background: #fff;
+}
+
+.cb-footer form {
+    display: flex;
+    gap: 8px;
+}
+
+.cb-footer input {
+    flex: 1;
+}
