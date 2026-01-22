@@ -55,33 +55,13 @@
             <label for="cuisine" class="form-label">Cuisine</label>
             <select class="form-select" id="cuisine" name="cuisine">
               <option value="">Any Cuisine</option>
-              <option value="african" {% if active_filters.cuisine == 'african' %}selected{% endif %}>African</option>
               <option value="asian" {% if active_filters.cuisine == 'asian' %}selected{% endif %}>Asian</option>
-              <option value="american" {% if active_filters.cuisine == 'american' %}selected{% endif %}>American</option>
               <option value="british" {% if active_filters.cuisine == 'british' %}selected{% endif %}>British</option>
-              <option value="cajun" {% if active_filters.cuisine == 'cajun' %}selected{% endif %}>Cajun</option>
-              <option value="caribbean" {% if active_filters.cuisine == 'caribbean' %}selected{% endif %}>Caribbean</option>
               <option value="chinese" {% if active_filters.cuisine == 'chinese' %}selected{% endif %}>Chinese</option>
-              <option value="eastern european" {% if active_filters.cuisine == 'eastern european' %}selected{% endif %}>Eastern European</option>
-              <option value="european" {% if active_filters.cuisine == 'european' %}selected{% endif %}>European</option>
-              <option value="french" {% if active_filters.cuisine == 'french' %}selected{% endif %}>French</option>
-              <option value="german" {% if active_filters.cuisine == 'german' %}selected{% endif %}>German</option>
-              <option value="greek" {% if active_filters.cuisine == 'greek' %}selected{% endif %}>Greek</option>
               <option value="indian" {% if active_filters.cuisine == 'indian' %}selected{% endif %}>Indian</option>
-              <option value="irish" {% if active_filters.cuisine == 'irish' %}selected{% endif %}>Irish</option>
               <option value="italian" {% if active_filters.cuisine == 'italian' %}selected{% endif %}>Italian</option>
               <option value="japanese" {% if active_filters.cuisine == 'japanese' %}selected{% endif %}>Japanese</option>
-              <option value="jewish" {% if active_filters.cuisine == 'jewish' %}selected{% endif %}>Jewish</option>
-              <option value="korean" {% if active_filters.cuisine == 'korean' %}selected{% endif %}>Korean</option>
-              <option value="latin american" {% if active_filters.cuisine == 'latin american' %}selected{% endif %}>Latin American</option>
-              <option value="mediterranean" {% if active_filters.cuisine == 'mediterranean' %}selected{% endif %}>Mediterranean</option>
               <option value="mexican" {% if active_filters.cuisine == 'mexican' %}selected{% endif %}>Mexican</option>
-              <option value="middle eastern" {% if active_filters.cuisine == 'middle eastern' %}selected{% endif %}>Middle Eastern</option>
-              <option value="nordic" {% if active_filters.cuisine == 'nordic' %}selected{% endif %}>Nordic</option>
-              <option value="southern" {% if active_filters.cuisine == 'southern' %}selected{% endif %}>Southern</option>
-              <option value="spanish" {% if active_filters.cuisine == 'spanish' %}selected{% endif %}>Spanish</option>
-              <option value="thai" {% if active_filters.cuisine == 'thai' %}selected{% endif %}>Thai</option>
-              <option value="vietnamese" {% if active_filters.cuisine == 'vietnamese' %}selected{% endif %}>Vietnamese</option>
             </select>
           </div>
 
@@ -93,14 +73,8 @@
               <option value="gluten free" {% if active_filters.diet == 'gluten free' %}selected{% endif %}>Gluten Free</option>
               <option value="ketogenic" {% if active_filters.diet == 'ketogenic' %}selected{% endif %}>Ketogenic</option>
               <option value="vegetarian" {% if active_filters.diet == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
-              <option value="lacto-vegetarian" {% if active_filters.diet == 'lacto-vegetarian' %}selected{% endif %}>Lacto-Vegetarian</option>
-              <option value="ovo-vegetarian" {% if active_filters.diet == 'ovo-vegetarian' %}selected{% endif %}>Ovo-Vegetarian</option>
               <option value="vegan" {% if active_filters.diet == 'vegan' %}selected{% endif %}>Vegan</option>
               <option value="pescetarian" {% if active_filters.diet == 'pescetarian' %}selected{% endif %}>Pescetarian</option>
-              <option value="paleo" {% if active_filters.diet == 'paleo' %}selected{% endif %}>Paleo</option>
-              <option value="primal" {% if active_filters.diet == 'primal' %}selected{% endif %}>Primal</option>
-              <option value="low fodmap" {% if active_filters.diet == 'low fodmap' %}selected{% endif %}>Low FODMAP</option>
-              <option value="whole30" {% if active_filters.diet == 'whole30' %}selected{% endif %}>Whole30</option>
             </select>
           </div>
 
@@ -118,9 +92,6 @@
               <option value="breakfast" {% if active_filters.type == 'breakfast' %}selected{% endif %}>Breakfast</option>
               <option value="soup" {% if active_filters.type == 'soup' %}selected{% endif %}>Soup</option>
               <option value="beverage" {% if active_filters.type == 'beverage' %}selected{% endif %}>Beverage</option>
-              <option value="sauce" {% if active_filters.type == 'sauce' %}selected{% endif %}>Sauce</option>
-              <option value="marinade" {% if active_filters.type == 'marinade' %}selected{% endif %}>Marinade</option>
-              <option value="fingerfood" {% if active_filters.type == 'fingerfood' %}selected{% endif %}>Finger Food</option>
               <option value="snack" {% if active_filters.type == 'snack' %}selected{% endif %}>Snack</option>
               <option value="drink" {% if active_filters.type == 'drink' %}selected{% endif %}>Drink</option>
             </select>
@@ -139,6 +110,29 @@
               <option value="120" {% if active_filters.maxReadyTime == '120' %}selected{% endif %}>2 hours</option>
             </select>
           </div>
+
+          <!-- NEW: Max Price Filter -->
+          <div class="col-md-3">
+            <label for="maxPrice" class="form-label">Max Price per Serving</label>
+            <select class="form-select" id="maxPrice" name="maxPrice">
+              <option value="">Any Price</option>
+              <option value="2" {% if active_filters.maxPrice == '2' %}selected{% endif %}>Under RM 10</option>
+              <option value="5" {% if active_filters.maxPrice == '5' %}selected{% endif %}>Under RM 25</option>
+              <option value="10" {% if active_filters.maxPrice == '10' %}selected{% endif %}>Under RM 50</option>
+              <option value="15" {% if active_filters.maxPrice == '15' %}selected{% endif %}>Under RM 75</option>
+            </select>
+          </div>
+
+          <!-- NEW: Sort By -->
+          <div class="col-md-3">
+            <label for="sort" class="form-label">Sort By</label>
+            <select class="form-select" id="sort" name="sort">
+              <option value="">Relevance</option>
+              <option value="price" {% if active_filters.sort == 'price' %}selected{% endif %}>Price (Low to High)</option>
+              <option value="time" {% if active_filters.sort == 'time' %}selected{% endif %}>Time (Quick First)</option>
+              <option value="popularity" {% if active_filters.sort == 'popularity' %}selected{% endif %}>Popularity</option>
+            </select>
+          </div>
         </div>
 
         <div class="mt-3">
@@ -155,7 +149,7 @@
 </form>
 
 <!-- Active Filters Display -->
-{% set has_filters = active_filters.ingredients or active_filters.cuisine or active_filters.diet or active_filters.type or active_filters.maxReadyTime %}
+{% set has_filters = active_filters.ingredients or active_filters.cuisine or active_filters.diet or active_filters.type or active_filters.maxReadyTime or active_filters.maxPrice or active_filters.sort %}
 {% if has_filters %}
 <div class="mb-3">
   <strong>Active filters:</strong>
@@ -183,6 +177,16 @@
     {% if active_filters.maxReadyTime %}
     <span class="badge bg-secondary">
       Max Time: {{ active_filters.maxReadyTime }} min
+    </span>
+    {% endif %}
+    {% if active_filters.maxPrice %}
+    <span class="badge bg-danger">
+      Max Price: RM {{ (active_filters.maxPrice|float * 5)|round(2) }}/serving
+    </span>
+    {% endif %}
+    {% if active_filters.sort %}
+    <span class="badge bg-dark">
+      Sort: {{ active_filters.sort|title }}
     </span>
     {% endif %}
   </div>
@@ -218,6 +222,13 @@
             {% if r.servings %}
             <span class="badge bg-light text-dark">
               <i class="bi bi-people"></i> {{ r.servings }} servings
+            </span>
+            {% endif %}
+            
+            <!-- FIXED PRICE DISPLAY -->
+            {% if r.pricePerServing %}
+            <span class="badge bg-success">
+              <i class="bi bi-cash"></i> RM {{ "%.2f"|format((r.pricePerServing / 100) * 5) }}/serving
             </span>
             {% endif %}
           </div>

@@ -83,6 +83,8 @@ def recipe_browse():
     diet = request.args.get("diet", "", type=str).strip()
     meal_type = request.args.get("type", "", type=str).strip()
     max_time = request.args.get("maxReadyTime", "", type=str).strip()
+    max_price = request.args.get("maxPrice", "", type=str).strip()
+    sort_by = request.args.get("sort", "", type=str).strip() #sorting filter
     
     recipes = []
     
@@ -99,6 +101,16 @@ def recipe_browse():
             filters['maxReadyTime'] = int(max_time)
         except ValueError:
             pass
+
+    if max_price:
+        try:
+            filters['maxPrice'] = int(float(max_price) * 100) #might change this 
+        except ValueError: 
+            pass
+
+    #sorting part
+    if sort_by:
+        filters['sort'] = sort_by     
     
     # Search with ingredients and/or filters
     if ingredients or filters:
@@ -115,6 +127,8 @@ def recipe_browse():
         'diet': diet,
         'type': meal_type,
         'maxReadyTime': max_time,
+        'maxPrice': max_price,
+        'sort': sort_by,
     }
     
     return render_template(
@@ -158,11 +172,31 @@ def recipe_detail(recipe_id: int):
             user_id=current_user.id
         ).order_by(Collection.is_default.desc(), Collection.created_at.desc()).all()
 
+    # code to extract pricing information 
+    price_per_serving = details.get('pricePerServing')
+    servings = details.get('servings',1)
+
+    # calculating the total recipe cost (price is in cents from Spoonacular's database)
+    total_price = None
+    price_formatted = None
+    total_price_formatted = None 
+
+    if price_per_serving:
+        #converting cents to dollars 
+        price_per_serving_dollars = price_per_serving/100
+        total_price = price_per_serving_dollars * servings
+
+        price_formatted = f"${price_per_serving_dollars:.2f}"
+        total_price_formatted = f"${total_price:.2f}"
+
     return render_template(
         "recipe_section/recipedetail.html",
         recipe=details,
         is_saved=is_saved,
         user_collections=user_collections,
+        price_per_serving=price_formatted,
+        total_price=total_price_formatted,
+        servings=servings,
     )
 
 

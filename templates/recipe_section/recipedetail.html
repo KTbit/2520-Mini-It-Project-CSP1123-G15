@@ -13,6 +13,36 @@
         <p class="card-text">
           Ready in {{ recipe.readyInMinutes }} minutes · Serves {{ recipe.servings }}
         </p>
+        {% if price_per_serving %}
+        <div class ="card mb-4 border-success">
+          <div class ="card-header bg success text-white">
+              <h5 class ="mb-0">Estimated Total Cost of Ingredients</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <p class ="mb-2">
+                  <strong>Price per Serving:</strong>
+                  <span class="badge bg-primary fs-6">{{ price_per_serving}}</span>
+                </p>
+              </div>
+              <div class="col-md-6">
+                <p class ="mb-2">
+                  <strong>Total Recipe Cost:</strong>
+                  <span class=""badge bg-info fs-6">{{total_price}}</span>
+                </p>
+              </div>
+            </div>
+            <p class ="text-muted small mb-0">
+              <em>Based on {{ servings }} serving(s). Prices are estimates and may vary by location.</em>
+            </p>
+          </div>
+        </div>
+        {% else %}
+        <div class ="alert alert-warning" role="alert">
+          <strong>Pricing information unavailable</strong>for this recipe.
+        </div>
+        {% endif %}
 
         {% if current_user.is_authenticated %}
         <!-- Save to Collection Button (Enhanced!) -->
