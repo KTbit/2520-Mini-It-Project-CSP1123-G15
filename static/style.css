@@ -46,93 +46,246 @@ footer {
     padding-left: 1.2rem;
 }
 
-<<<<<<< HEAD
-=======
-/* -------------------------------------------------
-   Chatbot widget (floating)
--------------------------------------------------- */
+/* CHATBOT WIDGET STYLES - Salman */
+
+/* 
+  Chatbot toggle button - this is the button users click to open the chat
+  We use position: fixed to make it stick to the viewport (browser window)
+  even when the user scrolls up and down the page - Siti
+*/
 .cb-toggle {
-    position: fixed;
-    right: 18px;
-    bottom: 18px;
-    z-index: 1050;
-    border-radius: 999px;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  position: fixed;       
+  bottom: 20px;              
+  right: 20px;             
+  border-radius: 50px;         
+  padding: 12px 24px;         
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);  
+  z-index: 1000;               
+  font-weight: 600;            
+  transition: all 0.2s ease;    
 }
 
+/* 
+  Hover effect for the toggle button
+*/
+.cb-toggle:hover {
+  transform: scale(1.05);     
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);  
+}
+
+/* 
+  The chat panel itself - the box that contains the conversation
+  Also uses position: fixed to stay in place during scrolling
+  Starts hidden (display: none) and shows when .cb-open class is added
+*/
 .cb-panel {
-    position: fixed;
-    right: 18px;
-    bottom: 78px;
-    width: 340px;
-    max-width: calc(100vw - 36px);
-    height: 420px;
-    max-height: calc(100vh - 140px);
-    background: #fff;
-    border: 1px solid rgba(0,0,0,0.12);
-    border-radius: 16px;
-    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-    display: none;
-    z-index: 1050;
+  position: fixed;            
+  bottom: 80px;                 /* Positioned above the toggle button (button is at 20px + its height) */
+  right: 20px;                  
+  width: 350px;                 
+  max-height: 500px;            
+  background: white;            
+  border-radius: 12px;         
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); 
+  display: none;                /* Hidden by default - JavaScript will toggle this */
+  flex-direction: column;       /* When visible, stack children (header, messages, footer) vertically */
+  z-index: 1001;                /* Higher than toggle button (1000) so it appears above it */
+  overflow: hidden;             /* Ensures content doesn't spill outside rounded corners */
 }
 
+/* 
+  When the panel has the 'cb-open' class (added by JavaScript), it becomes visible
+  The display changes from 'none' to 'flex', showing the panel
+*/
 .cb-panel.cb-open {
-    display: flex;
-    flex-direction: column;
+  display: flex;                /* Shows the panel and activates flexbox layout */
+  animation: slideUp 0.3s ease; /* Smooth slide-up animation when appearing */
 }
 
+/* 
+  Animation for panel appearing - slides up from below with fade-in
+  Creates a polished, professional feel
+*/
+@keyframes slideUp {
+  from {
+    opacity: 0;                 /* Starts invisible */
+    transform: translateY(20px); /* Starts 20px lower than final position */
+  }
+  to {
+    opacity: 1;                 /* Ends fully visible */
+    transform: translateY(0);   /* Ends at final position */
+  }
+}
+
+/* 
+  Chat panel header - contains the "RecipeBot" title and close button
+*/
 .cb-header {
-    padding: 12px 14px;
-    background: #212529;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  background: #f0bd57 ; 
+  color: white;              
+  padding: 16px;                
+  border-radius: 12px 12px 0 0; 
+  display: flex;               
+  justify-content: space-between; /* Title on left, close button on right */
+  align-items: center;        
 }
 
+/* 
+  Messages container - this is where the conversation appears
+  Uses flex: 1 to take up all available space between header and footer
+*/
 .cb-messages {
-    padding: 12px;
-    overflow-y: auto;
-    flex: 1;
-    background: #f8f9fa;
+  flex: 1;                      /* Grows to fill space between header and footer */
+  overflow-y: auto;             /* Allows scrolling when messages exceed container height */
+  padding: 16px;                /* Spacing around messages */
+  background: #f8f9fa;          /* Light gray background - easier on eyes than pure white */
+  display: flex;                /* Flexbox for message layout */
+  flex-direction: column;       /* Stack messages vertically */
 }
 
+/* 
+  Styling the scrollbar in the messages area (works in Webkit browsers like Chrome/Safari)
+  Makes it look cleaner and less intrusive
+*/
+.cb-messages::-webkit-scrollbar {
+  width: 6px;                   /* Thin scrollbar */
+}
+
+.cb-messages::-webkit-scrollbar-track {
+  background: transparent;      /* Invisible track */
+}
+
+.cb-messages::-webkit-scrollbar-thumb {
+  background: #cbd5e0;          /* Light gray thumb */
+  border-radius: 3px;           /* Rounded scrollbar thumb */
+}
+
+.cb-messages::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;          /* Darker gray when hovering */
+}
+
+/* 
+  Footer section - contains the input field and send button
+  Stays at bottom of panel regardless of how many messages there are
+*/
+.cb-footer {
+  padding: 12px;                /* Comfortable padding around form */
+  border-top: 1px solid #dee2e6; /* Subtle line separating from messages */
+  background: white;            /* Clean white background */
+  border-radius: 0 0 12px 12px; /* Rounded bottom corners only */
+}
+
+/* 
+  Form inside footer - holds input and send button
+  Flexbox makes them sit side-by-side with proper spacing
+*/
+.cb-footer form {
+  display: flex;                /* Side-by-side layout */
+  gap: 8px;                     /* 8px space between input and button */
+}
+
+/* 
+  Input field takes up most of the space
+  Send button takes only as much space as it needs
+*/
+.cb-footer input {
+  flex: 1;                      /* Grows to fill available space */
+  border-radius: 20px;          /* Rounded input field for modern look */
+  padding: 8px 16px;            /* Comfortable padding inside input */
+  border: 1px solid #dee2e6;    /* Subtle border */
+}
+
+.cb-footer input:focus {
+  outline: none;                /* Remove default browser outline */
+  border-color: #667eea;        /* Purple border when focused - matches header */
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); /* Subtle glow effect */
+}
+
+.cb-footer button[type="submit"] {
+  border-radius: 20px;          /* Matches input field roundness */
+  padding: 8px 20px;            /* Comfortable button size */
+  white-space: nowrap;          /* Prevents "Send" text from wrapping */
+}
+
+/* 
+  Individual message container
+  Messages are aligned left (bot) or right (user) based on who sent them
+*/
 .cb-msg {
-    display: flex;
-    margin-bottom: 10px;
+  margin-bottom: 12px;          /* Space between messages */
+  display: flex;                /* Flexbox for alignment */
+  animation: fadeIn 0.3s ease;  /* Smooth fade-in when message appears */
 }
 
-.cb-msg.cb-user {
-    justify-content: flex-end;
+/* Simple fade-in animation for new messages */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
+/* 
+  The actual message bubble - contains the text
+  Styled differently for user vs bot messages
+*/
 .cb-bubble {
-    max-width: 85%;
-    padding: 10px 12px;
-    border-radius: 14px;
-    line-height: 1.25;
-    font-size: 0.92rem;
-    border: 1px solid rgba(0,0,0,0.08);
-    background: #fff;
+  padding: 10px 14px;           /* Comfortable padding around text */
+  border-radius: 18px;          /* Rounded speech bubble effect */
+  max-width: 80%;               /* Never wider than 80% of container - prevents super wide bubbles */
+  word-wrap: break-word;        /* Breaks long words to prevent overflow */
+  line-height: 1.4;             /* Comfortable line spacing for readability */
+}
+
+/* 
+  User messages - appear on the right with blue background
+  Uses margin-left: auto to push bubble to the right side
+*/
+.cb-user {
+  justify-content: flex-end;    /* Aligns the message to the right */
 }
 
 .cb-user .cb-bubble {
-    background: #e9f2ff;
+  background: #007bff;          /* Blue background - Bootstrap primary color */
+  color: white;                 /* White text for contrast */
+  margin-left: auto;            /* Pushes bubble to right side */
 }
 
-.cb-footer {
-    padding: 10px;
-    border-top: 1px solid rgba(0,0,0,0.08);
-    background: #fff;
+/* 
+  Bot messages - appear on the left with white background and border
+  Default flex alignment keeps them on the left
+*/
+.cb-bot .cb-bubble {
+  background: white;            /* White background for bot messages */
+  color: #333;                  /* Dark gray text */
+  border: 1px solid #dee2e6;    /* Subtle border to distinguish from background */
 }
 
-.cb-footer form {
-    display: flex;
-    gap: 8px;
+/* 
+  Links inside messages should be styled to stand out
+  Particularly important for recipe links like /recipes/123
+*/
+.cb-bubble a {
+  color: #007bff;               /* Blue links in bot messages */
+  text-decoration: underline;   /* Underline to make them obviously clickable */
 }
 
-.cb-footer input {
-    flex: 1;
+.cb-user .cb-bubble a {
+  color: white;                 /* White links in user messages (blue background) */
+  text-decoration: underline;
 }
->>>>>>> 3c7431f (combined code for filtered searching with salmans work)
+
+/* 
+  Responsive design for smaller screens
+  On mobile, the chat panel takes up more screen space
+*/
+@media (max-width: 768px) {
+  .cb-panel {
+    width: calc(100vw - 40px);  
+    right: 20px;                
+    left: 20px;                 
+    max-height: 70vh;          
+  }
+  
+  .cb-toggle {
+    padding: 10px 20px;        
+  }
+}

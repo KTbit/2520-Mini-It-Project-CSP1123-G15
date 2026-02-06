@@ -1,77 +1,114 @@
 import json
-
+import os
+import io
 from flask import (
-    Flask,
-    render_template,
-    request,
-    redirect,
-    url_for,
-    flash,
-    abort,
-    make_response
+    Flask, render_template, request, redirect, url_for, flash, abort, make_response, jsonify, send_file
 )
-from flask_login import (
-    LoginManager,
-    login_user,
-    logout_user,
-    login_required,
-    current_user,
-)
-
-from reportlab.lib.pagesizes import letter
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
 from reportlab.lib.units import inch
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.pdfgen import canvas
 from io import BytesIO
-
 from functools import wraps
-from databasemodels import db, User, SavedRecipe, ShoppingList, Post, Comment, Collection
+
+from databasemodels import db, User, SavedRecipe, ShoppingList, Post, Comment, Collection, ManualShoppingItem
 from config import Config
 from utilities import search_recipes_by_ingredients, get_recipe_details, get_recipe_cached, autocomplete_ingredients
-
-
-
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Initialise extensions
+# Initialize extensions
 db.init_app(app)
-
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = "user_login"  # redirect here when login is required
+login_manager.login_view = "user_login"
 
+# USD to MYR conversion rate (update this periodically or use an API)
+USD_TO_MYR = 4.50  # Approximate rate, update as needed
 
 @login_manager.user_loader
 def load_user(user_id: str):
-    """Callback for Flask‑Login to load a user from the DB."""
     try:
         return User.query.get(int(user_id))
     except (TypeError, ValueError):
         return None
-
 
 # Create DB tables if they do not exist
 with app.app_context():
     db.create_all()
 
 
+# ADDED: Helper functions for PDF generation (Salman's work merge) 
+
+def _logo_path() -> str:
+    """Absolute path to the MMU logo used in PDF exports."""
+    return os.path.join(app.root_path, "static", "img", "mmu_logo.png")
+
+
+def _draw_pdf_header(pdf_canvas: canvas.Canvas, width: float, height: float, username: str | None):
+    """Draws a consistent header (logo + title + user) on the current page.
+
+    Returns the y position where body content should start.
+    """
+    # Logo
+    logo = _logo_path()
+    header_top = height - 30
+    if os.path.exists(logo):
+        try:
+            img = ImageReader(logo)
+            iw, ih = img.getSize()
+            # Fit logo nicely in the header
+            target_h = 40
+            target_w = max(1, int((iw / max(1, ih)) * target_h))
+            pdf_canvas.drawImage(
+                img,
+                50,
+                header_top - target_h,
+                width=target_w,
+                height=target_h,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+        except Exception:
+            # If image fails to load, continue without logo.
+            pass
+
+    # Title + user
+    y = height - 90
+    pdf_canvas.setFont("Helvetica-Bold", 16)
+    pdf_canvas.drawString(50, y, "Shopping List")
+    pdf_canvas.setFont("Helvetica", 10)
+    y -= 18
+    if username:
+        pdf_canvas.drawString(50, y, f"User: {username}")
+        y -= 22
+    else:
+        y -= 10
+
+    # Divider line
+    pdf_canvas.setLineWidth(0.6)
+    pdf_canvas.line(50, y, width - 50, y)
+    y -= 22
+    return y
+
+
+# Helper function for currency conversion
+def convert_to_myr(price_in_cents):
+    """Convert Spoonacular price (USD cents) to Malaysian Ringgit"""
+    if not price_in_cents:
+        return None
+    usd_dollars = price_in_cents / 100
+    return usd_dollars * USD_TO_MYR
 
 @app.route("/")
 def index():
-    #get recent posts
     recent_posts = Post.query.order_by(Post.created_at.desc()).limit(6).all()
-
-    #trying to debug
-    print(f"[DEBUG] Passing {len(recent_posts)} posts to homepage")
-
-    return render_template("index.html", recent_posts = recent_posts)
-
-#WEEK 5 - added category filtering based on price and time taken - lowest to highest, vice versa (modified recipebrowse route)
-
-# WEEK 7 EDIT : further optimized the code to present clearer recipe search categroy filters. new variable : cuisine
+    return render_template("index.html", recent_posts=recent_posts)
 
 @app.route("/recipes/browse")
 def recipe_browse():
@@ -84,7 +121,7 @@ def recipe_browse():
     meal_type = request.args.get("type", "", type=str).strip()
     max_time = request.args.get("maxReadyTime", "", type=str).strip()
     max_price = request.args.get("maxPrice", "", type=str).strip()
-    sort_by = request.args.get("sort", "", type=str).strip() #sorting filter
+    sort_by = request.args.get("sort", "", type=str).strip()
     
     recipes = []
     
@@ -101,16 +138,18 @@ def recipe_browse():
             filters['maxReadyTime'] = int(max_time)
         except ValueError:
             pass
-
+    
+    # Convert MYR to USD cents for API
     if max_price:
         try:
-            filters['maxPrice'] = int(float(max_price) * 100) #might change this 
-        except ValueError: 
+            myr_price = float(max_price)
+            usd_price = myr_price / USD_TO_MYR
+            filters['maxPrice'] = int(usd_price * 100)  # Convert to cents
+        except ValueError:
             pass
-
-    #sorting part
+    
     if sort_by:
-        filters['sort'] = sort_by     
+        filters['sort'] = sort_by
     
     # Search with ingredients and/or filters
     if ingredients or filters:
@@ -137,7 +176,6 @@ def recipe_browse():
         active_filters=active_filters,
     )
 
-# week 9 - added the route for autocompleting ingredients in search. its like recipe radar, super cook websites, etc
 @app.route("/api/autocomplete/ingredients")
 def api_autocomplete_ingredients():
     """API endpoint for ingredient autocomplete suggestions."""
@@ -148,7 +186,6 @@ def api_autocomplete_ingredients():
     
     suggestions = autocomplete_ingredients(query, number=8)
     return {"suggestions": suggestions}
-            
 
 @app.route("/recipes/<int:recipe_id>")
 def recipe_detail(recipe_id: int):
@@ -157,7 +194,6 @@ def recipe_detail(recipe_id: int):
         flash("Could not load recipe details. Please try again later.", "danger")
         return redirect(url_for("index"))
 
-    # Check if this recipe is already saved by the current user
     is_saved = False
     user_collections = []
     if current_user.is_authenticated:
@@ -167,27 +203,23 @@ def recipe_detail(recipe_id: int):
             ).first()
             is not None
         )
-        #Get the user's collections for the save button dropdown on a recipe
         user_collections = Collection.query.filter_by(
             user_id=current_user.id
         ).order_by(Collection.is_default.desc(), Collection.created_at.desc()).all()
 
-    # code to extract pricing information 
+    # Extract pricing information and convert to MYR 
     price_per_serving = details.get('pricePerServing')
-    servings = details.get('servings',1)
-
-    # calculating the total recipe cost (price is in cents from Spoonacular's database)
-    total_price = None
+    servings = details.get('servings', 1)
+    
     price_formatted = None
-    total_price_formatted = None 
-
+    total_price_formatted = None
+    
     if price_per_serving:
-        #converting cents to dollars 
-        price_per_serving_dollars = price_per_serving/100
-        total_price = price_per_serving_dollars * servings
-
-        price_formatted = f"${price_per_serving_dollars:.2f}"
-        total_price_formatted = f"${total_price:.2f}"
+        price_myr = convert_to_myr(price_per_serving)
+        total_price_myr = price_myr * servings
+        
+        price_formatted = f"RM {price_myr:.2f}"
+        total_price_formatted = f"RM {total_price_myr:.2f}"
 
     return render_template(
         "recipe_section/recipedetail.html",
@@ -200,7 +232,7 @@ def recipe_detail(recipe_id: int):
     )
 
 
-
+# WEEK 2 - Authenticate user route - written by Siti 
 @app.route("/register", methods=["GET", "POST"])
 def user_register():
     if current_user.is_authenticated:
@@ -234,7 +266,7 @@ def user_register():
 
     return render_template("user/user_register.html")
 
-
+# Login route
 @app.route("/login", methods=["GET", "POST"])
 def user_login():
     if current_user.is_authenticated:
@@ -255,7 +287,7 @@ def user_login():
 
     return render_template("user/user_login.html")
 
-
+# Logout route
 @app.route("/logout")
 @login_required
 def user_logout():
@@ -263,13 +295,11 @@ def user_logout():
     flash("You have been logged out.", "info")
     return redirect(url_for("index"))
 
+# WEEK 4 - Added Saving / Unsaving recipes route - by Siti
 
-
-
-@app.route("/recipes/<int:recipe_id>/unsave", methods=["POST"])
+@app.route("/recipes/<int:recipe_id>/unsave", methods=["POST"]) #Unsaving route
 @login_required
 def unsave_recipe(recipe_id: int):
-    """Remove a saved recipe from the current user's favourites."""
     saved = SavedRecipe.query.filter_by(
         user_id=current_user.id, recipe_id=recipe_id
     ).first()
@@ -282,25 +312,22 @@ def unsave_recipe(recipe_id: int):
     flash("Recipe removed from your favourites.", "success")
     return redirect(url_for("recipe_detail", recipe_id=recipe_id))
 
-# User post creation / deletion feature - week 5 update
-
+# WEEK 5 - Created and added user post creation / deletion route EDIT: fully finished by Week 8; by Siti
 @app.route('/posts/create', methods=['POST'])
 @login_required
 def create_post():
-    recipe_id = request.form.get('recipe_id')  # <-- if not working..change to spoonacular_id
+    recipe_id = request.form.get('recipe_id')
     
     if not recipe_id:
         flash("No recipe specified!", "danger")
         return redirect(url_for('index'))
     
-    # Fetch recipe info
     recipe = get_recipe_cached(int(recipe_id))
     
     if not recipe:
         flash("Could not fetch recipe details!", "danger")
         return redirect(url_for('index'))
     
-    # Check if user already posted this recipe
     existing = Post.query.filter_by(
         user_id=current_user.id, 
         spoonacular_id=int(recipe_id)
@@ -310,7 +337,6 @@ def create_post():
         flash("You've already shared this recipe!", "info")
         return redirect(url_for('post_view', post_id=existing.id))
     
-    # Create post
     post = Post(
         user_id=current_user.id, 
         spoonacular_id=int(recipe_id),
@@ -324,43 +350,36 @@ def create_post():
     flash("Recipe shared successfully! 🎉", "success")
     return redirect(url_for('post_view', post_id=post.id))
 
-
 @app.route('/posts/<int:post_id>/delete', methods=['POST'])
 @login_required
 def delete_post(post_id):
     p = Post.query.get_or_404(post_id)
     if p.author != current_user and not current_user.is_admin:
         abort(403)
-    db.session.delete(p); db.session.commit()
+    db.session.delete(p)
+    db.session.commit()
+    flash("Post deleted.", "info")
     return redirect(url_for('index'))
 
 @app.route('/posts')
 def posts_feed():
-    """Show all posts from users you follow (or all posts for now)"""
     if current_user.is_authenticated:
-        # Show posts from followed users
-        posts = Post.query.filter(
-            Post.user_id.in_([u.id for u in current_user.followed.all()])
-        ).order_by(Post.created_at.desc()).all()
+        posts = Post.query.order_by(Post.created_at.desc()).limit(50).all()
     else:
-        # Show all public posts
+        # Show a preview of recent posts to entice people to sign up
         posts = Post.query.order_by(Post.created_at.desc()).limit(20).all()
     
     return render_template('posts_feed.html', posts=posts)
 
-# Week 8 - refurbished the post_view route and its html page
 @app.route('/posts/<int:post_id>')
 def post_view(post_id):
-    """View a single post"""
     post = Post.query.get_or_404(post_id)
     recipe = get_recipe_cached(post.spoonacular_id)
-
+    # Pass Comment model to template
     return render_template('post_view.html', post=post, recipe=recipe, Comment=Comment)
 
-
-@app.route('/profile/<int:user_id>')
+@app.route('/profile/<int:user_id>') 
 def profile(user_id):
-    """View a user's profile"""
     user = User.query.get_or_404(user_id)
     posts = Post.query.filter_by(user_id=user_id).order_by(Post.created_at.desc()).all()
     
@@ -391,14 +410,10 @@ def unfollow(user_id):
         db.session.commit()
     return redirect(url_for('profile', user_id=user_id))
 
-# Week 10 - refurbished comments; route and appearance-wise
-
-from databasemodels import db, User, SavedRecipe, ShoppingList, Post, Comment, Collection
-
+# WEEK 6 - Comment route added EDIT: Finished + Debugged by Week 9 - by Siti
 @app.route('/posts/<int:post_id>/comment', methods=['POST'])
 @login_required
 def add_comment(post_id):
-    """Add a comment to a post"""
     post = Post.query.get_or_404(post_id)
     comment_text = request.form.get('comment', '').strip()
     
@@ -422,14 +437,12 @@ def add_comment(post_id):
     flash("Comment added! 💬", "success")
     return redirect(url_for('post_view', post_id=post_id))
 
-
+# Comment deletion route
 @app.route('/posts/<int:post_id>/comment/<int:comment_id>/delete', methods=['POST'])
 @login_required
 def delete_comment(post_id, comment_id):
-    """Delete a comment (only by author or admin)"""
     comment = Comment.query.get_or_404(comment_id)
     
-    # Check if user is author or admin
     if comment.user_id != current_user.id and not current_user.is_admin:
         flash("You can only delete your own comments!", "danger")
         return redirect(url_for('post_view', post_id=post_id))
@@ -440,30 +453,38 @@ def delete_comment(post_id, comment_id):
     flash("Comment deleted.", "info")
     return redirect(url_for('post_view', post_id=post_id))
 
-
-
-# -------------------------------------------------
-# Routes: Shopping List (Week 4 feature) ---FYI: 'shopping list' changed to 'menu items list' in week 7
-# -------------------------------------------------
+# WEEK 4 - Salman wrote and finished Shopping List Routes
 @app.route("/shopping-list")
 @login_required
 def shopping_list():
-    """Display the current user's shopping list."""
     items = ShoppingList.query.filter_by(user_id=current_user.id).order_by(
         ShoppingList.created_at.desc()
     ).all()
-    return render_template("user/shopping_list.html", items=items)
-
+    
+    # ADDED: Query manual shopping items (from groupmate's version)
+    manual_items = ManualShoppingItem.query.filter_by(user_id=current_user.id).order_by(
+        ManualShoppingItem.created_at.desc()
+    ).all()
+    
+    # Calculate total cost in MYR - added by Siti
+    total_cost_myr = 0
+    for item in items:
+        recipe = get_recipe_cached(item.recipe_id)
+        if recipe and recipe.get('pricePerServing'):
+            price_myr = convert_to_myr(recipe['pricePerServing'])
+            servings = recipe.get('servings', 1)
+            total_cost_myr += price_myr * servings
+    
+    return render_template(
+        "user/shopping_list.html", 
+        items=items,
+        manual_items=manual_items,  # ADDED: Pass manual items to template
+        total_cost=f"RM {total_cost_myr:.2f}"
+    )
 
 @app.route("/recipes/<int:recipe_id>/add-to-shopping-list", methods=["POST"])
 @login_required
 def add_to_shopping_list(recipe_id: int):
-    """Add a recipe's ingredients to the current user's shopping list.
-
-    For simplicity, we fetch the recipe details again from Spoonacular here and
-    store the ingredient strings as JSON.
-    """
-    # Check if already in shopping list
     existing = ShoppingList.query.filter_by(
         user_id=current_user.id, recipe_id=recipe_id
     ).first()
@@ -498,88 +519,11 @@ def add_to_shopping_list(recipe_id: int):
     flash("Recipe added to your shopping list.", "success")
     return redirect(url_for("shopping_list"))
 
-@app.route("/shopping-list/pdf")
-@login_required
-def shopping_list_pdf():
-    """Generate and download shopping list as PDF"""
-    
-    items = ShoppingList.query.filter_by(user_id=current_user.id).order_by(
-        ShoppingList.created_at.desc()
-    ).all()
-    
-    if not items:
-        flash('Your shopping list is empty!', 'info')
-        return redirect(url_for('shopping_list'))
-    
-    # Create PDF in memory
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch)
-    elements = []
-    
-    # Styles
-    styles = getSampleStyleSheet()
-    title_style = styles['Title']
-    
-    # Add title
-    title = Paragraph(f"Shopping List - {current_user.username}", title_style)
-    elements.append(title)
-    elements.append(Spacer(1, 0.3 * inch))
-    
-    # Process each recipe in the shopping list
-    for item in items:
-        # Recipe name as a heading
-        recipe_heading = Paragraph(
-            f"<b>{item.recipe_name}</b> (Recipe #{item.recipe_id})",
-            styles['Heading2']
-        )
-        elements.append(recipe_heading)
-        elements.append(Spacer(1, 0.1 * inch))
-        
-        # Get ingredients
-        ingredients = item.ingredients()
-        
-        if ingredients:
-            # Create table data
-            data = [['☐', 'Ingredient']]  # Header
-            for ing in ingredients:
-                data.append(['☐', ing])
-            
-            # Create table
-            table = Table(data, colWidths=[0.4*inch, 5*inch])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ]))
-            
-            elements.append(table)
-            elements.append(Spacer(1, 0.3 * inch))
-    
-    # Build PDF
-    doc.build(elements)
-    
-    # Get PDF data
-    pdf_data = buffer.getvalue()
-    buffer.close()
-    
-    # Create response
-    response = make_response(pdf_data)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'attachment; filename=shopping_list_{current_user.username}.pdf'
-    
-    return response
-
-
-
+# REMOVED DUPLICATE: This function was defined twice in original file
+# Kept only one instance below in the proper location
 @app.route("/shopping-list/<int:item_id>/remove", methods=["POST"])
 @login_required
 def remove_from_shopping_list(item_id: int):
-    """Remove an entry from the current user's shopping list."""
     item = ShoppingList.query.get_or_404(item_id)
     if item.user_id != current_user.id:
         flash("You cannot modify another user's shopping list.", "danger")
@@ -590,12 +534,137 @@ def remove_from_shopping_list(item_id: int):
     flash("Item removed from your shopping list.", "success")
     return redirect(url_for("shopping_list"))
 
+# -------------------------------------------------
+# ADDED: Manual Shopping List Routes - Fully merged and debugged by Week 11
+# -------------------------------------------------
+@app.route("/shopping-list/manual/add", methods=["POST"])
+@login_required
+def shopping_list_manual_add():
+    """Add a manual shopping item (not tied to a recipe)"""
+    name = (request.form.get("item_name") or "").strip()
+    quantity = (request.form.get("quantity") or "").strip()
+    notes = (request.form.get("notes") or "").strip()
+
+    if not name:
+        flash("Please enter an item name.", "warning")
+        return redirect(url_for("shopping_list"))
+
+    item = ManualShoppingItem(
+        user_id=current_user.id,
+        item_name=name,
+        quantity=quantity or None,
+        notes=notes or None,
+    )
+    db.session.add(item)
+    db.session.commit()
+    flash("Manual item added to your shopping list.", "success")
+    return redirect(url_for("shopping_list"))
+
+
+@app.route("/shopping-list/manual/<int:item_id>/remove", methods=["POST"])
+@login_required
+def shopping_list_manual_remove(item_id: int):
+    """Remove a manual shopping item"""
+    item = ManualShoppingItem.query.filter_by(id=item_id, user_id=current_user.id).first()
+    if not item:
+        flash("Item not found.", "warning")
+        return redirect(url_for("shopping_list"))
+    db.session.delete(item)
+    db.session.commit()
+    flash("Manual item removed.", "success")
+    return redirect(url_for("shopping_list"))
 
 # -------------------------------------------------
-# Routes: Admin
+# WEEK 5 - Shopping List PDF export 
+# MODIFIED: Enhanced with logo header from groupmate's version
 # -------------------------------------------------
+@app.route("/shopping-list/pdf")
+@login_required
+def shopping_list_pdf():
+    items = ShoppingList.query.filter_by(user_id=current_user.id).order_by(
+        ShoppingList.created_at.desc()
+    ).all()
+    
+    # ADDED: Get manual items for PDF export
+    manual_items = ManualShoppingItem.query.filter_by(user_id=current_user.id).order_by(
+        ManualShoppingItem.created_at.asc()
+    ).all()
+    
+    if not items and not manual_items:
+        flash('Your shopping list is empty!', 'info')
+        return redirect(url_for('shopping_list'))
+    
+    # MODIFIED: Use A4 page size and canvas 
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
 
+    # ADDED: Use improved header function with logo 
+    y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
+    
+    # Recipe-based shopping list items
+    if items:
+        for item in items:
+            if y < 80:
+                pdf.showPage()
+                y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
+            
+            pdf.setFont("Helvetica-Bold", 12)
+            pdf.drawString(50, y, f"- {item.recipe_name}")
+            y -= 18
+            pdf.setFont("Helvetica", 10)
+            
+            for ing in item.ingredients():
+                text = f"• {ing}"
+                max_chars = 90
+                lines = [text[i:i+max_chars] for i in range(0, len(text), max_chars)]
+                for line in lines:
+                    if y < 60:
+                        pdf.showPage()
+                        y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
+                    pdf.drawString(70, y, line)
+                    y -= 14
+            y -= 10
 
+    # ADDED: Manual items section in PDF (from groupmate's version)
+    if manual_items:
+        if y < 120:
+            pdf.showPage()
+            y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
+        
+        pdf.setFont("Helvetica-Bold", 13)
+        pdf.drawString(50, y, "Manual Items")
+        y -= 18
+        pdf.setFont("Helvetica", 11)
+        
+        for mi in manual_items:
+            if y < 80:
+                pdf.showPage()
+                y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
+                pdf.setFont("Helvetica", 11)
+            
+            line = f"• {mi.item_name}"
+            if mi.quantity:
+                line += f" ({mi.quantity})"
+            if mi.notes:
+                line += f" — {mi.notes}"
+            pdf.drawString(50, y, line[:110])
+            y -= 14
+    
+    pdf.save()
+    buffer.seek(0)
+    
+    # MODIFIED: Use send_file with download_name parameter
+    filename = f"shopping_list_{current_user.username}.pdf"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf",
+    )
+
+# WEEK 3 - Added Admin decorator / route(s) - by Siti 
+# EDIT - WEEK 11: Salman fully reworked all of the admin routes in Week 11
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -603,8 +672,6 @@ def admin_required(f):
             abort(403)
         return f(*args, **kwargs)
     return wrapper
-
-
 
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
@@ -626,44 +693,85 @@ def admin_login():
 
     return render_template("admin/admin_login.html")
 
-
+# Week 4 - Week 5; finished with admin dashboard route + debugging, helped by Salman - Siti
+# EDIT - WEEK 11: Salman fully reworked admin dashboard route
 @app.route("/admin/dashboard")
 @login_required
 @admin_required
 def admin_dashboard():
-    if not current_user.is_admin:
-        flash("Access denied. Admin only.", "danger")
-        return redirect(url_for("index"))
-
     users = User.query.order_by(User.created_at.desc()).all()
-    return render_template("admin/admin_dashboard.html", users=users)
+    posts = Post.query.order_by(Post.created_at.desc()).limit(20).all()
+    comments = Comment.query.order_by(Comment.created_at.desc()).limit(20).all()
+    
+    stats = {
+        'total_users': User.query.count(),
+        'total_posts': Post.query.count(),
+        'total_comments': Comment.query.count(),
+        'total_collections': Collection.query.count(),
+    }
+    
+    return render_template(
+        "admin/admin_dashboard.html", 
+        users=users, 
+        posts=posts,
+        comments=comments,
+        stats=stats
+    )
 
-#week 5 - added admin delete user route
+# Admin - user deletion feature; fully debugged in Week 8; during small admin HTML page rework - Siti
+# EDIT - WEEK 11: Salman fully debugged + reworked the code for this entire part below
 @app.route("/admin/users/<int:user_id>/delete", methods=["POST"])
 @login_required
 @admin_required
 def admin_delete_user(user_id: int):
-    """Delete a user (admin only)"""
     user = User.query.get_or_404(user_id)
     
     if user.is_admin:
         flash("Cannot delete admin users.", "danger")
         return redirect(url_for('admin_dashboard'))
     
+    reason = request.form.get('reason', 'No reason provided')
+    
+    # Log the deletion (you could store this in a separate table)
+    print(f"[ADMIN DELETE] User '{user.username}' deleted by {current_user.username}. Reason: {reason}")
+    
     db.session.delete(user)
     db.session.commit()
-    flash(f"User '{user.username}' has been deleted.", "success")
+    flash(f"User '{user.username}' has been deleted. Reason: {reason}", "success")
     return redirect(url_for('admin_dashboard'))
 
+# Admin post deletion feature + reason in doing so // added in Week 10 - 11 during (2nd) admin feature rework - done by both Siti, Salman
+@app.route("/admin/posts/<int:post_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def admin_delete_post(post_id: int):
+    post = Post.query.get_or_404(post_id)
+    reason = request.form.get('reason', 'No reason provided')
+    
+    print(f"[ADMIN DELETE] Post #{post.id} by {post.author.username} deleted. Reason: {reason}")
+    
+    db.session.delete(post)
+    db.session.commit()
+    flash(f"Post deleted. Reason: {reason}", "success")
+    return redirect(url_for('admin_dashboard'))
 
+# Admin comment deletion feature added in Week 10 - 11 during (2nd) admin feature rework - done by both Siti, Salman
+@app.route("/admin/comments/<int:comment_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def admin_delete_comment(comment_id: int):
+    comment = Comment.query.get_or_404(comment_id)
+    reason = request.form.get('reason', 'No reason provided')
+    
+    print(f"[ADMIN DELETE] Comment #{comment.id} by {comment.author.username} deleted. Reason: {reason}")
+    
+    db.session.delete(comment)
+    db.session.commit()
+    flash(f"Comment deleted. Reason: {reason}", "success")
+    return redirect(url_for('admin_dashboard'))
 
-# Week 9, 10 - newly added + modified Collection routes for the user dashboard overhaul
-
-from databasemodels import db, User, SavedRecipe, ShoppingList, Post, Comment, Collection
-
-# Helper function to ensure user has a default collection
+# WEEK 4 - 5 : Added Collection routes for users to save / unsave recipes to
 def ensure_default_collection(user_id):
-    """Create default 'My Recipes' collection if user doesn't have one."""
     default = Collection.query.filter_by(user_id=user_id, is_default=True).first()
     if not default:
         default = Collection(
@@ -676,26 +784,21 @@ def ensure_default_collection(user_id):
         db.session.commit()
     return default
 
-
+# WEEK 3 - Added User dashboard route- Siti
+# EDIT: Reworked in Week 9; Salman helped in identifying errors
 @app.route("/dashboard")
 @login_required
 def user_dashboard():
-    """Pinterest-style dashboard showing recipe collections."""
-    # Ensure user has default collection
     ensure_default_collection(current_user.id)
-    
     collections = Collection.query.filter_by(user_id=current_user.id).order_by(
-        Collection.is_default.desc(),  # Default collection first
+        Collection.is_default.desc(),
         Collection.created_at.desc()
     ).all()
-    
     return render_template("user/userdashboard.html", collections=collections)
-
 
 @app.route("/collections/create", methods=["POST"])
 @login_required
 def create_collection():
-    """Create a new recipe collection."""
     name = request.form.get("name", "").strip()
     description = request.form.get("description", "").strip()
     
@@ -716,30 +819,25 @@ def create_collection():
     db.session.add(collection)
     db.session.commit()
     
-    flash(f"Collection '{name}' created! 📌", "success")
+    flash(f"Collection '{name}' created!", "success")
     return redirect(url_for("user_dashboard"))
 
-
+# Collection authentication - added in Week 9 rework - Siti
 @app.route("/collections/<int:collection_id>")
 @login_required
 def view_collection(collection_id):
-    """View all recipes in a specific collection."""
     collection = Collection.query.get_or_404(collection_id)
     
-    # Ensure user owns this collection
     if collection.user_id != current_user.id:
         flash("You don't have permission to view this collection.", "danger")
         return redirect(url_for("user_dashboard"))
     
     recipes = collection.recipes.order_by(SavedRecipe.saved_at.desc()).all()
-    
     return render_template("user/collection_view.html", collection=collection, recipes=recipes)
-
 
 @app.route("/collections/<int:collection_id>/edit", methods=["POST"])
 @login_required
 def edit_collection(collection_id):
-    """Edit a collection's name and description."""
     collection = Collection.query.get_or_404(collection_id)
     
     if collection.user_id != current_user.id:
@@ -761,14 +859,13 @@ def edit_collection(collection_id):
     collection.description = description if description else None
     db.session.commit()
     
-    flash("Collection updated! ✏️", "success")
+    flash("Collection updated!", "success")
     return redirect(url_for("user_dashboard"))
 
-
+# Collection deletion route - finished by Week 5 - Siti
 @app.route("/collections/<int:collection_id>/delete", methods=["POST"])
 @login_required
 def delete_collection(collection_id):
-    """Delete a collection (moves recipes to default collection)."""
     collection = Collection.query.get_or_404(collection_id)
     
     if collection.user_id != current_user.id:
@@ -779,7 +876,6 @@ def delete_collection(collection_id):
         flash("Cannot delete the default collection.", "warning")
         return redirect(url_for("user_dashboard"))
     
-    # Move all recipes to default collection
     default_collection = ensure_default_collection(current_user.id)
     for recipe in collection.recipes.all():
         recipe.collection_id = default_collection.id
@@ -790,8 +886,8 @@ def delete_collection(collection_id):
     flash(f"Collection '{collection.name}' deleted. Recipes moved to 'My Recipes'.", "info")
     return redirect(url_for("user_dashboard"))
 
-
-# MODIFY your existing save_recipe route to support collections:
+# MOVED SAVING FEATURE HERE DURING DEBUGGING + Reworked in Week 9 - Siti
+# REMOVED DUPLICATE: This was the second definition of save_recipe - kept only this one
 @app.route("/recipes/<int:recipe_id>/save", methods=["POST"])
 @login_required
 def save_recipe(recipe_id: int):
@@ -799,7 +895,6 @@ def save_recipe(recipe_id: int):
     recipe_image = request.form.get("recipe_image", "").strip()
     collection_id = request.form.get("collection_id")
     
-    # Check if already saved
     existing = SavedRecipe.query.filter_by(
         user_id=current_user.id, recipe_id=recipe_id
     ).first()
@@ -807,7 +902,6 @@ def save_recipe(recipe_id: int):
         flash("Recipe already in your saved list.", "info")
         return redirect(url_for("recipe_detail", recipe_id=recipe_id))
     
-    # If no collection specified, use default
     if not collection_id:
         default_collection = ensure_default_collection(current_user.id)
         collection_id = default_collection.id
@@ -825,11 +919,10 @@ def save_recipe(recipe_id: int):
     flash("Recipe saved to your collection!", "success")
     return redirect(url_for("recipe_detail", recipe_id=recipe_id))
 
-
+# WEEK 9 - Further rework on Dashboard feature - Siti
 @app.route("/recipes/<int:saved_recipe_id>/move", methods=["POST"])
 @login_required
 def move_recipe(saved_recipe_id):
-    """Move a saved recipe to a different collection."""
     saved_recipe = SavedRecipe.query.get_or_404(saved_recipe_id)
     
     if saved_recipe.user_id != current_user.id:
@@ -850,11 +943,159 @@ def move_recipe(saved_recipe_id):
     saved_recipe.collection_id = new_collection_id
     db.session.commit()
     
-    flash(f"Recipe moved to '{new_collection.name}'! 📦", "success")
+    flash(f"Recipe moved to '{new_collection.name}'!", "success")
     return redirect(request.referrer or url_for("user_dashboard"))
 
-# -------------------------------------------------
-# Entry point
-# -------------------------------------------------
+
+# WEEK 6 - 7 : Salman fully wrote and debugged Chatbot route ; merged by the end of Week 7
+@app.route("/chatbot", methods=["POST"])
+def chatbot():
+    """
+    Simple recipe chatbot that helps users search for recipes.
+    Uses keyword matching to understand user intent.
+    """
+    try:
+        data = request.get_json()
+        user_message = data.get('message', '').lower().strip()
+        
+        # If user says "help", show available commands
+        if 'help' in user_message:
+            return jsonify({
+                'reply': '''Here's what I can help you with:
+                
+**Search by ingredients:** "find recipes with chicken and rice"
+**Search by cuisine:** "show me italian recipes" or "mexican food"
+**Search by diet:** "vegan recipes" or "vegetarian meals"
+**Quick meals:** "quick recipes" or "fast meals"
+**Get a random suggestion:** "suggest something" or "surprise me"
+
+Just tell me what you're looking for!'''
+            })
+        
+        # Pattern matching for different types of requests
+        reply = ""
+        
+        # Check if user is asking for recipes with specific ingredients
+        # Patterns: "find recipes with X", "recipes with X", "cook with X", "use X"
+        if any(phrase in user_message for phrase in ['find recipes with', 'recipes with', 'cook with', 'use ', 'have ']):
+            # Extract ingredients after the trigger phrase
+            # This is a simple extraction - just takes everything after the trigger
+            ingredients = user_message
+            for phrase in ['find recipes with', 'recipes with', 'cook with', 'i have', 'use']:
+                if phrase in ingredients:
+                    ingredients = ingredients.split(phrase, 1)[1].strip()
+                    break
+            
+            # Remove common filler words
+            ingredients = ingredients.replace(' and ', ', ').replace('some', '').strip()
+            
+            reply = f'''Great! Let me help you find recipes with **{ingredients}**.
+
+Click here to search: /recipes/browse?ingredients={ingredients.replace(' ', '+')}
+
+Or you can visit the Search Recipes page and enter: {ingredients}'''
+        
+        # Check if user is asking for cuisine-specific recipes
+        # Patterns: "italian", "mexican", "asian", etc.
+        elif any(cuisine in user_message for cuisine in ['italian', 'mexican', 'asian', 'chinese', 'indian', 'japanese']):
+            cuisine = None
+            if 'italian' in user_message:
+                cuisine = 'italian'
+            elif 'mexican' in user_message:
+                cuisine = 'mexican'
+            elif 'asian' in user_message:
+                cuisine = 'asian'
+            elif 'chinese' in user_message:
+                cuisine = 'chinese'
+            elif 'indian' in user_message:
+                cuisine = 'indian'
+            elif 'japanese' in user_message:
+                cuisine = 'japanese'
+            
+            reply = f'''I can show you delicious **{cuisine.title()}** recipes! 🍜
+
+Click here: /recipes/browse?cuisine={cuisine}
+
+Or visit Search Recipes and filter by {cuisine.title()} cuisine.'''
+        
+        # Check if user is asking for diet-specific recipes
+        elif any(diet in user_message for diet in ['vegan', 'vegetarian', 'gluten free', 'gluten-free']):
+            diet = None
+            if 'vegan' in user_message:
+                diet = 'vegan'
+            elif 'vegetarian' in user_message:
+                diet = 'vegetarian'
+            elif 'gluten' in user_message:
+                diet = 'gluten free'
+            
+            reply = f'''Looking for **{diet}** recipes? I've got you covered! 🌱
+
+Click here: /recipes/browse?diet={diet.replace(' ', '+')}
+
+Or use the diet filter on the Search Recipes page.'''
+        
+        # Check if user wants quick/fast recipes
+        elif any(word in user_message for word in ['quick', 'fast', 'easy', '15 min', '30 min']):
+            time_limit = '30'  # Default to 30 minutes
+            if '15' in user_message:
+                time_limit = '15'
+            
+            reply = f'''Here are recipes ready in **{time_limit} minutes or less**! ⚡
+
+Click here: /recipes/browse?maxReadyTime={time_limit}
+
+Perfect for busy days!'''
+        
+        # Check if user wants breakfast recipes
+        elif any(word in user_message for word in ['breakfast', 'morning', 'brunch']):
+            reply = '''Good morning! Here are some **breakfast** ideas: 🌅
+
+Click here: /recipes/browse?type=breakfast
+
+Start your day delicious!'''
+        
+        # Check if user wants dessert recipes
+        elif any(word in user_message for word in ['dessert', 'sweet', 'cake', 'cookie']):
+            reply = '''Sweet tooth? Here are some **dessert** recipes: 🍰
+
+Click here: /recipes/browse?type=dessert
+
+Enjoy!'''
+        
+        # Random suggestion - just send them to browse
+        elif any(phrase in user_message for phrase in ['suggest', 'surprise', 'random', 'what should i', 'recommend']):
+            reply = '''How about exploring our recipe collection? 
+
+**Browse all recipes:** /recipes/browse
+
+Or try these quick links:
+- **15-minute meals:** /recipes/browse?maxReadyTime=15
+- **Vegetarian:** /recipes/browse?diet=vegetarian
+- **Italian:** /recipes/browse?cuisine=italian
+
+Happy cooking! 👨‍🍳'''
+        
+        # If we couldn't match any pattern, give a helpful default response
+        else:
+            reply = f'''I'm not quite sure what you're looking for, but I'm here to help! 
+
+Try asking me things like:
+- "Find recipes with chicken and tomato"
+- "Show me vegan recipes"
+- "Quick Italian meals"
+- "Breakfast ideas"
+
+Or type **help** to see all I can do! 💬'''
+        
+        return jsonify({'reply': reply})
+    
+    except Exception as e:
+        # Log the error for debugging
+        print(f"[Chatbot Error]: {str(e)}")
+        return jsonify({
+            'reply': 'Sorry, I encountered an error. Please try rephrasing your question or type **help** for examples!'
+        }), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True)

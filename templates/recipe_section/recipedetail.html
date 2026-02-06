@@ -13,39 +13,41 @@
         <p class="card-text">
           Ready in {{ recipe.readyInMinutes }} minutes · Serves {{ recipe.servings }}
         </p>
+        
+        <!-- FIXED PRICING SECTION -->
         {% if price_per_serving %}
-        <div class ="card mb-4 border-success">
-          <div class ="card-header bg success text-white">
-              <h5 class ="mb-0">Estimated Total Cost of Ingredients</h5>
+        <div class="card mb-4 border-success">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0"> Estimated Total Cost of Ingredients</h5>
           </div>
           <div class="card-body">
             <div class="row">
               <div class="col-md-6">
-                <p class ="mb-2">
+                <p class="mb-2">
                   <strong>Price per Serving:</strong>
-                  <span class="badge bg-primary fs-6">{{ price_per_serving}}</span>
+                  <span class="badge bg-primary fs-6">{{ price_per_serving }}</span>
                 </p>
               </div>
               <div class="col-md-6">
-                <p class ="mb-2">
+                <p class="mb-2">
                   <strong>Total Recipe Cost:</strong>
-                  <span class=""badge bg-info fs-6">{{total_price}}</span>
+                  <span class="badge bg-info fs-6">{{ total_price }}</span>
                 </p>
               </div>
             </div>
-            <p class ="text-muted small mb-0">
+            <p class="text-muted small mb-0">
               <em>Based on {{ servings }} serving(s). Prices are estimates and may vary by location.</em>
             </p>
           </div>
         </div>
         {% else %}
-        <div class ="alert alert-warning" role="alert">
-          <strong>Pricing information unavailable</strong>for this recipe.
+        <div class="alert alert-warning" role="alert">
+          <strong> Pricing information unavailable</strong> for this recipe.
         </div>
         {% endif %}
 
         {% if current_user.is_authenticated %}
-        <!-- Save to Collection Button (Enhanced!) -->
+        <!-- Save to Collection Button -->
         {% if not is_saved %}
         <div class="dropdown d-grid mb-2">
           <button class="btn btn-primary dropdown-toggle" 
@@ -74,9 +76,15 @@
             {% endfor %}
             <li><hr class="dropdown-divider"></li>
             <li>
-              <a class="dropdown-item text-primary" href="{{ url_for('user_dashboard') }}">
+              <!-- Changed from <a> link to <button> that triggers the modal
+                data-bs-toggle and data-bs-target are Bootstrap's way of connecting
+                a button to a specific modal -->
+                <button class="dropdown-item text-primary" 
+                type="button"
+                data-bs-toggle="modal" 
+                data-bs-target="#createCollectionModal">
                 <i class="bi bi-plus-circle"></i> Create New Collection
-              </a>
+              </button>
             </li>
           </ul>
         </div>
@@ -89,7 +97,7 @@
         {% endif %}
 
         <!-- Share Recipe Button -->
-        <form method="post" action="{{ url_for('create_post', recipe_id=recipe.id) }}" class="d-grid mb-2">
+        <form method="post" action="{{ url_for('create_post') }}" class="d-grid mb-2">
           <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
           <button type="submit" class="btn btn-outline-primary">
             <i class="bi bi-share-fill"></i> Share This Recipe
@@ -113,7 +121,22 @@
     </div>
   </div>
 
+
   <div class="col-lg-7">
+    
+    {% if recipe.summary %}
+      <div class="card mb-4">
+        <div class="card-body">
+          <h4 class="mb-3">
+            <i class="bi bi-info-circle-fill text-primary"></i> About This Recipe
+          </h4>
+        <div class="recipe-description">
+        {{ recipe.summary|striptags }}
+      </div>
+      </div>
+    </div>
+    {% endif %}
+  
     <h4>Ingredients</h4>
     <ul>
       {% for ing in recipe.extendedIngredients %}
@@ -148,5 +171,254 @@
     </ul>
     {% endif %}
   </div>
+  <!-- 
+  CREATE COLLECTION MODAL
+  This is a Bootstrap modal dialog that appears when the user wants to create a new collection
+  while saving a recipe. It allows them to create the collection without leaving the page.
+-->
+<div class="modal fade" id="createCollectionModal" tabindex="-1" aria-labelledby="createCollectionModalLabel" aria-hidden="true">
+  <!-- 
+    modal fade: Bootstrap classes for the modal effect
+    id: Unique identifier so we can target this specific modal
+    tabindex="-1": Allows modal to receive keyboard focus
+    aria-*: Accessibility attributes for screen readers
+  -->
+  
+  <div class="modal-dialog modal-dialog-centered">
+    <!-- 
+      modal-dialog: Bootstrap class for the modal container
+      modal-dialog-centered: Centers the modal vertically on the screen
+    -->
+    
+    <div class="modal-content">
+      <!-- The actual content of the modal -->
+      
+      <!-- MODAL HEADER -->
+      <div class="modal-header">
+        <h5 class="modal-title" id="createCollectionModalLabel">
+          <i class="bi bi-folder-plus"></i> Create New Collection
+        </h5>
+        <!-- Close button (X) in top-right corner -->
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      
+      <!-- MODAL BODY - Contains the form -->
+      <div class="modal-body">
+        <form id="createCollectionForm">
+          <!-- 
+            We use a custom ID so we can intercept the form submission with JavaScript
+            and submit it via AJAX instead of a normal form submission
+          -->
+          
+          <!-- Collection Name Input -->
+          <div class="mb-3">
+            <label for="collectionName" class="form-label">
+              Collection Name <span class="text-danger">*</span>
+            </label>
+            <input 
+              type="text" 
+              class="form-control" 
+              id="collectionName" 
+              name="name"
+              placeholder="e.g. Comfort Food, Quick Dinners, Desserts"
+              maxlength="100"
+              required
+              autofocus>
+            <!-- 
+              autofocus: Automatically focuses this field when modal opens
+              maxlength: Matches database constraint (100 chars)
+              required: HTML5 validation - can't submit empty
+            -->
+            <div class="form-text">
+              Choose a descriptive name for your collection (max 100 characters)
+            </div>
+          </div>
+          
+          <!-- Collection Description Input (Optional) -->
+          <div class="mb-3">
+            <label for="collectionDescription" class="form-label">
+              Description <span class="text-muted small">(optional)</span>
+            </label>
+            <textarea 
+              class="form-control" 
+              id="collectionDescription" 
+              name="description"
+              rows="3"
+              placeholder="What kind of recipes will you save here?"></textarea>
+            <div class="form-text">
+              Add a brief description to help you remember what this collection is for
+            </div>
+          </div>
+          
+          <!-- Hidden field to store the recipe ID -->
+          <input type="hidden" id="recipeIdToSave" name="recipe_id" value="{{ recipe.id }}">
+          <!-- 
+            We need to remember which recipe we're saving so we can add it to the
+            new collection immediately after creating it
+          -->
+          
+          <!-- Hidden fields for recipe metadata -->
+          <input type="hidden" id="recipeNameToSave" value="{{ recipe.title }}">
+          <input type="hidden" id="recipeImageToSave" value="{{ recipe.image }}">
+          
+          <!-- Error/Success Message Area -->
+          <div id="collectionModalMessage" class="alert d-none" role="alert">
+            <!-- Initially hidden with d-none, shown by JavaScript when needed -->
+          </div>
+        </form>
+      </div>
+      
+      <!-- MODAL FOOTER - Contains action buttons -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-circle"></i> Cancel
+        </button>
+        <button type="button" class="btn btn-primary" id="saveCollectionBtn">
+          <i class="bi bi-check-circle"></i> Create & Save Recipe
+        </button>
+        <!-- 
+          We use a regular button instead of type="submit" because we want to handle
+          the submission with JavaScript/AJAX, not a normal form POST
+        -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 
+  JAVASCRIPT FOR MODAL HANDLING
+  This script handles the modal interactions and AJAX submission
+-->
+<script>
+// Wait for the DOM to be fully loaded before running this code
+// This ensures all HTML elements exist before we try to access them
+document.addEventListener('DOMContentLoaded', function() {
+  
+  // Get references to the important elements we'll be working with
+  const modal = document.getElementById('createCollectionModal');
+  const form = document.getElementById('createCollectionForm');
+  const saveBtn = document.getElementById('saveCollectionBtn');
+  const messageDiv = document.getElementById('collectionModalMessage');
+  const collectionNameInput = document.getElementById('collectionName');
+  
+  // Bootstrap modal instance - this gives us programmatic control over the modal
+  const modalInstance = new bootstrap.Modal(modal);
+  
+  /**
+   * Function to show a message inside the modal
+   * @param {string} message - The message text to display
+   * @param {string} type - Bootstrap alert type: 'success', 'danger', 'warning', 'info'
+   */
+  function showMessage(message, type) {
+    messageDiv.className = `alert alert-${type}`;  // Set the alert color
+    messageDiv.textContent = message;              // Set the text
+    messageDiv.classList.remove('d-none');         // Make it visible (remove display:none)
+  }
+  
+  /**
+   * Function to hide the message
+   */
+  function hideMessage() {
+    messageDiv.classList.add('d-none');  // Hide it again
+  }
+  
+  /**
+   * Function to reset the form when modal is closed
+   * Clears all inputs and messages for a fresh start next time
+   */
+  function resetForm() {
+    form.reset();           // Clear all form inputs
+    hideMessage();          // Hide any messages
+    saveBtn.disabled = false;  // Re-enable the save button
+    saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Create & Save Recipe';
+  }
+  
+  // Event listener: When modal is closed, reset the form
+  modal.addEventListener('hidden.bs.modal', resetForm);
+  
+  // Event listener: When modal is shown, focus the name input
+  modal.addEventListener('shown.bs.modal', function() {
+    collectionNameInput.focus();  // Puts cursor in the name field automatically
+  });
+  
+  /**
+   * Main function: Handle the "Create & Save Recipe" button click
+   * This is where the AJAX magic happens!
+   */
+  saveBtn.addEventListener('click', async function() {
+    // Validate the form using HTML5 validation
+    if (!form.checkValidity()) {
+      form.reportValidity();  // Shows browser's built-in validation messages
+      return;  // Stop here if validation fails
+    }
+    
+    // Disable the button to prevent double-submission
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
+    // The spinner gives visual feedback that something is happening
+    
+    hideMessage();  // Clear any previous messages
+    
+    // Get the form data
+    const formData = {
+      name: document.getElementById('collectionName').value.trim(),
+      description: document.getElementById('collectionDescription').value.trim(),
+      recipe_id: document.getElementById('recipeIdToSave').value,
+      recipe_name: document.getElementById('recipeNameToSave').value,
+      recipe_image: document.getElementById('recipeImageToSave').value
+    };
+    
+    try {
+      // Send AJAX POST request to create the collection and save the recipe
+      const response = await fetch('/collections/create-and-save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',  // Tell server we're sending JSON
+        },
+        body: JSON.stringify(formData)  // Convert JavaScript object to JSON string
+      });
+      
+      // Parse the JSON response from the server
+      const data = await response.json();
+      
+      // Check if the request was successful
+      if (response.ok && data.success) {
+        // SUCCESS! Show success message
+        showMessage(data.message, 'success');
+        
+        // Wait 1.5 seconds so user can see the success message
+        setTimeout(function() {
+          modalInstance.hide();  // Close the modal
+          // Reload the page to show the updated collection dropdown
+          window.location.reload();
+        }, 1500);
+        
+      } else {
+        // FAILURE - Show error message from server
+        showMessage(data.message || 'Failed to create collection. Please try again.', 'danger');
+        // Re-enable the button so user can try again
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Create & Save Recipe';
+      }
+      
+    } catch (error) {
+      // NETWORK ERROR - Fetch failed (no internet, server down, etc.)
+      console.error('Error:', error);
+      showMessage('Network error. Please check your connection and try again.', 'danger');
+      // Re-enable the button
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Create & Save Recipe';
+    }
+  });
+  
+  // Bonus: Allow pressing Enter in the name field to submit
+  collectionNameInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();  // Prevent normal form submission
+      saveBtn.click();     // Trigger our custom AJAX submission instead
+    }
+  });
+});
+</script>
 </div>
 {% endblock %}

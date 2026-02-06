@@ -39,6 +39,7 @@ class User(db.Model, UserMixin):
     
     saved_recipes = db.relationship("SavedRecipe", backref="user", lazy=True)
     shopping_lists = db.relationship("ShoppingList", backref="user", lazy=True)
+    manual_shopping_items = db.relationship("ManualShoppingItem", backref="user", lazy=True) #manual shopping list
 
 
 class Post(db.Model):
@@ -99,7 +100,7 @@ class SavedRecipe(db.Model):
     def __repr__(self) -> str:
         return f"<SavedRecipe {self.recipe_name!r} for user_id={self.user_id}>"
 
-
+# Added by Salman in Week 5
 class ShoppingList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -114,3 +115,17 @@ class ShoppingList(db.Model):
             return _json.loads(self.ingredients_json)
         except Exception:
             return []
+
+
+# Added by Salman in Week 10
+class ManualShoppingItem(db.Model):
+    """Manual shopping list items added by the user (not tied to a recipe)."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    item_name = db.Column(db.String(200), nullable=False)
+    quantity = db.Column(db.String(80), nullable=True)
+    notes = db.Column(db.String(300), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<ManualShoppingItem {self.item_name!r} for user_id={self.user_id}>"

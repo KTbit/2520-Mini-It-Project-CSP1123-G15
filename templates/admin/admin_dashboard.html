@@ -1,117 +1,412 @@
 {% extends "nav_base.html" %}
-{% block title %}Admin Dashboard{% endblock %}
+{% block title %}Admin Dashboard · Recipe Finder{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <h2><i class="bi bi-shield-lock"></i> Admin Dashboard</h2>
-    <p class="text-muted">Welcome, {{ current_user.username }}! Manage users and content here.</p>
-    
-    <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="users-tab" data-bs-toggle="tab" 
-                    data-bs-target="#users" type="button">
-                <i class="bi bi-people"></i> Users ({{ users|length }})
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="posts-tab" data-bs-toggle="tab" 
-                    data-bs-target="#posts" type="button">
-                <i class="bi bi-file-post"></i> Posts
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="stats-tab" data-bs-toggle="tab" 
-                    data-bs-target="#stats" type="button">
-                <i class="bi bi-bar-chart"></i> Statistics
-            </button>
-        </li>
-    </ul>
-    
-    <div class="tab-content" id="adminTabsContent">
-        <!-- Users Tab -->
-        <div class="tab-pane fade show active" id="users" role="tabpanel">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Username</th>
-                            <th>Email</th>
-                            <th>Admin</th>
-                            <th>Joined</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users %}
-                        <tr>
-                            <td>{{ user.id }}</td>
-                            <td>
-                                <a href="{{ url_for('profile', user_id=user.id) }}">
-                                    {{ user.username }}
-                                </a>
-                            </td>
-                            <td>{{ user.email }}</td>
-                            <td>
-                                {% if user.is_admin %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-2 d-md-block bg-light sidebar">
+            <div class="position-sticky pt-3">
+                <h6 class="sidebar-heading px-3 mt-4 mb-1 text-muted">
+                    <span>Admin Panel</span>
+                </h6>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#overview">
+                            <i class="bi bi-speedometer2"></i> Overview
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#users">
+                            <i class="bi bi-people"></i> Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#posts">
+                            <i class="bi bi-file-post"></i> Posts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#comments">
+                            <i class="bi bi-chat-dots"></i> Comments
+                        </a>
+                    </li>
+                </ul>
+                
+                <h6 class="sidebar-heading px-3 mt-4 mb-1 text-muted">
+                    <span>Actions</span>
+                </h6>
+                <ul class="nav flex-column mb-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="bi bi-house-door"></i> Back to Site
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('user_logout') }}">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-10 ms-sm-auto px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">
+                    <i class="bi bi-shield-lock text-primary"></i> Admin Dashboard
+                </h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <span class="badge bg-success">Logged in as: {{ current_user.username }}</span>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div id="overview" class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-white bg-primary">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-people-fill"></i> Total Users
+                            </h5>
+                            <h2 class="mb-0">{{ stats.total_users }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-success">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-file-post-fill"></i> Total Posts
+                            </h5>
+                            <h2 class="mb-0">{{ stats.total_posts }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-info">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-chat-fill"></i> Total Comments
+                            </h5>
+                            <h2 class="mb-0">{{ stats.total_comments }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-warning">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-collection-fill"></i> Collections
+                            </h5>
+                            <h2 class="mb-0">{{ stats.total_collections }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Section -->
+            <div id="users" class="mb-5">
+                <h3 class="mb-3">
+                    <i class="bi bi-people"></i> User Management
+                </h3>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Admin</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.id }}</td>
+                                <td>
+                                    <a href="{{ url_for('profile', user_id=user.id) }}" target="_blank">
+                                        {{ user.username }}
+                                    </a>
+                                </td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    {% if user.is_admin %}
                                     <span class="badge bg-danger">Admin</span>
-                                {% else %}
+                                    {% else %}
                                     <span class="badge bg-secondary">User</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</td>
-                            <td>
-                                {% if not user.is_admin %}
-                                <form method="post" action="{{ url_for('admin_delete_user', user_id=user.id) }}" 
-                                      style="display:inline;" onsubmit="return confirm('Delete this user?')">
-                                    <button type="submit" class="btn btn-sm btn-danger">
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    {% if not user.is_admin %}
+                                    <button class="btn btn-sm btn-danger" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#deleteUserModal{{ user.id }}">
                                         <i class="bi bi-trash"></i> Delete
                                     </button>
-                                </form>
-                                {% else %}
-                                    <span class="text-muted">Protected</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                    {% else %}
+                                    <button class="btn btn-sm btn-secondary" disabled>
+                                        <i class="bi bi-shield-lock"></i> Protected
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            
+                            <!-- Delete User Modal -->
+                            <div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title">
+                                                <i class="bi bi-exclamation-triangle-fill"></i> Delete User
+                                            </h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="post" action="{{ url_for('admin_delete_user', user_id=user.id) }}">
+                                            <div class="modal-body">
+                                                <p><strong>Are you sure you want to delete user "{{ user.username }}"?</strong></p>
+                                                <p class="text-muted">This action cannot be undone. All user data will be permanently deleted.</p>
+                                                
+                                                <div class="mb-3">
+                                                    <label for="deleteReason{{ user.id }}" class="form-label">
+                                                        Reason for deletion <span class="text-danger">*</span>
+                                                    </label>
+                                                    <select class="form-select" name="reason" id="deleteReason{{ user.id }}" required>
+                                                        <option value="">Select a reason...</option>
+                                                        <option value="Inappropriate Content">Inappropriate Content</option>
+                                                        <option value="Spam / Advertisement">Spam / Advertisement</option>
+                                                        <option value="Harassment / Abuse">Harassment / Abuse</option>
+                                                        <option value="Terms of Service Violation">Terms of Service Violation</option>
+                                                        <option value="User Request">User Request</option>
+                                                        <option value="Duplicate Account">Duplicate Account</option>
+                                                        <option value="Other">Other</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-danger">
+                                                    <i class="bi bi-trash"></i> Confirm Delete
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-        
-        <!-- Posts Tab (placeholder) -->
-        <div class="tab-pane fade" id="posts" role="tabpanel">
-            <p class="text-muted">Post moderation coming soon...</p>
-        </div>
-        
-        <!-- Statistics Tab -->
-        <div class="tab-pane fade" id="stats" role="tabpanel">
-            <div class="row">
-                <div class="col-md-4 mb-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h3>{{ users|length }}</h3>
-                            <p class="text-muted">Total Users</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h3>{{ users|selectattr('is_admin')|list|length }}</h3>
-                            <p class="text-muted">Admins</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h3>{{ users|rejectattr('is_admin')|list|length }}</h3>
-                            <p class="text-muted">Regular Users</p>
-                        </div>
-                    </div>
+
+            <!-- Posts Section -->
+            <div id="posts" class="mb-5">
+                <h3 class="mb-3">
+                    <i class="bi bi-file-post"></i> Recent Posts
+                </h3>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Author</th>
+                                <th>Posted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for post in posts %}
+                            <tr>
+                                <td>{{ post.id }}</td>
+                                <td>
+                                    <a href="{{ url_for('post_view', post_id=post.id) }}" target="_blank">
+                                        {{ post.title[:50] }}{% if post.title|length > 50 %}...{% endif %}
+                                    </a>
+                                </td>
+                                <td>{{ post.author.username }}</td>
+                                <td>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-danger" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#deletePostModal{{ post.id }}">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                            
+                            <!-- Delete Post Modal -->
+                            <div class="modal fade" id="deletePostModal{{ post.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title">
+                                                <i class="bi bi-exclamation-triangle-fill"></i> Delete Post
+                                            </h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="post" action="{{ url_for('admin_delete_post', post_id=post.id) }}">
+                                            <div class="modal-body">
+                                                <p><strong>Delete post: "{{ post.title }}"</strong></p>
+                                                <p class="text-muted">By {{ post.author.username }}</p>
+                                                
+                                                <div class="mb-3">
+                                                    <label for="deletePostReason{{ post.id }}" class="form-label">
+                                                        Reason for deletion <span class="text-danger">*</span>
+                                                    </label>
+                                                    <select class="form-select" name="reason" id="deletePostReason{{ post.id }}" required>
+                                                        <option value="">Select a reason...</option>
+                                                        <option value="Inappropriate Content">Inappropriate Content</option>
+                                                        <option value="Spam">Spam</option>
+                                                        <option value="Copyright Violation">Copyright Violation</option>
+                                                        <option value="Misleading Information">Misleading Information</option>
+                                                        <option value="Off-Topic">Off-Topic</option>
+                                                        <option value="User Request">User Request</option>
+                                                        <option value="Other">Other</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-danger">
+                                                    <i class="bi bi-trash"></i> Confirm Delete
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
+
+            <!-- Comments Section -->
+            <div id="comments" class="mb-5">
+                <h3 class="mb-3">
+                    <i class="bi bi-chat-dots"></i> Recent Comments
+                </h3>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Comment</th>
+                                <th>Author</th>
+                                <th>Post</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for comment in comments %}
+                            <tr>
+                                <td>{{ comment.id }}</td>
+                                <td>{{ comment.body[:60] }}{% if comment.body|length > 60 %}...{% endif %}</td>
+                                <td>{{ comment.author.username }}</td>
+                                <td>
+                                    <a href="{{ url_for('post_view', post_id=comment.post_id) }}" target="_blank">
+                                        View Post
+                                    </a>
+                                </td>
+                                <td>{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-danger" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#deleteCommentModal{{ comment.id }}">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                            
+                            <!-- Delete Comment Modal -->
+                            <div class="modal fade" id="deleteCommentModal{{ comment.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title">
+                                                <i class="bi bi-exclamation-triangle-fill"></i> Delete Comment
+                                            </h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="post" action="{{ url_for('admin_delete_comment', comment_id=comment.id) }}">
+                                            <div class="modal-body">
+                                                <p><strong>Delete comment by {{ comment.author.username }}:</strong></p>
+                                                <blockquote class="border-start border-3 border-secondary ps-3 text-muted">
+                                                    {{ comment.body }}
+                                                </blockquote>
+                                                
+                                                <div class="mb-3">
+                                                    <label for="deleteCommentReason{{ comment.id }}" class="form-label">
+                                                        Reason for deletion <span class="text-danger">*</span>
+                                                    </label>
+                                                    <select class="form-select" name="reason" id="deleteCommentReason{{ comment.id }}" required>
+                                                        <option value="">Select a reason...</option>
+                                                        <option value="Inappropriate Language">Inappropriate Language</option>
+                                                        <option value="Harassment / Bullying">Harassment / Bullying</option>
+                                                        <option value="Spam">Spam</option>
+                                                        <option value="Hate Speech">Hate Speech</option>
+                                                        <option value="Off-Topic">Off-Topic</option>
+                                                        <option value="Personal Information">Personal Information</option>
+                                                        <option value="Other">Other</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-danger">
+                                                    <i class="bi bi-trash"></i> Confirm Delete
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
     </div>
 </div>
+
+<style>
+.sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 48px 0 0;
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+}
+
+.sidebar-heading {
+    font-size: .75rem;
+    text-transform: uppercase;
+}
+
+.sidebar .nav-link {
+    font-weight: 500;
+    color: #333;
+}
+
+.sidebar .nav-link:hover {
+    color: #007bff;
+}
+
+.sidebar .nav-link.active {
+    color: #007bff;
+}
+
+.sidebar .nav-link i {
+    margin-right: 8px;
+}
+</style>
 {% endblock %}
