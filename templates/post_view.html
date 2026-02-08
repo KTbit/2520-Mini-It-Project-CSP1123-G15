@@ -1,4 +1,5 @@
 <!-- Users creating and sharing recipes as posts - feature added in Week 5; fully finished by Week 11, Salman helped in debugging posts not showing up on user's profile-->
+<!-- FIXED: Added MYR price display (was showing USD before) -->
 {% extends "nav_base.html" %}
 {% block title %}{{ post.title }} · Recipe Post{% endblock %}
 
@@ -54,11 +55,15 @@
             <i class="bi bi-clock"></i> {{ recipe.readyInMinutes }} minutes
           </span>
           <span class="badge bg-light text-dark me-2">
-            <i class="bi bi-people"></i> {{ recipe.servings }} servings
+            <i class="bi bi-people"></i> {{ servings }} servings
           </span>
-          {% if recipe.pricePerServing %}
-          <span class="badge bg-light text-dark">
-            <i class="bi bi-currency-dollar"></i> ${{ "%.2f"|format(recipe.pricePerServing / 100) }} per serving
+          <!-- FIXED: Changed to use price_per_serving and total_price variables (MYR) -->
+          {% if price_per_serving %}
+          <span class="badge bg-success text-white me-2">
+            <i class="bi bi-cash"></i> {{ price_per_serving }} per serving
+          </span>
+          <span class="badge bg-info text-white">
+            <i class="bi bi-calculator"></i> Total: {{ total_price }}
           </span>
           {% endif %}
         </div>

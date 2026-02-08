@@ -20,6 +20,18 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(255), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # ADDED: Suspension system fields (Week 1 - admin moderation features)
+    is_suspended = db.Column(db.Boolean, default=False)
+    suspended_until = db.Column(db.DateTime, nullable=True)  # None = permanent suspension
+    suspension_reason = db.Column(db.String(500), nullable=True)
+    
+    # ADDED: Soft delete fields (Week 12 - allow undo of user deletion)
+    is_deleted = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by_admin_id = db.Column(db.Integer, nullable=True)
+    deletion_reason = db.Column(db.String(500), nullable=True)
+    
     posts = db.relationship('Post', backref='author', lazy='dynamic')
     comments = db.relationship('Comment', backref='author', lazy='dynamic')
     collections = db.relationship('Collection', backref='owner', lazy='dynamic')
@@ -39,7 +51,7 @@ class User(db.Model, UserMixin):
     
     saved_recipes = db.relationship("SavedRecipe", backref="user", lazy=True)
     shopping_lists = db.relationship("ShoppingList", backref="user", lazy=True)
-    manual_shopping_items = db.relationship("ManualShoppingItem", backref="user", lazy=True) #manual shopping list
+    manual_shopping_items = db.relationship("ManualShoppingItem", backref="user", lazy=True)
 
 
 class Post(db.Model):

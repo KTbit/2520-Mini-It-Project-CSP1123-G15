@@ -42,9 +42,9 @@ def load_user(user_id: str):
 with app.app_context():
     db.create_all()
 
-
-# ADDED: Helper functions for PDF generation (Salman's work merge) 
-
+# -------------------------------------------------
+# ADDED: Helper functions for PDF generation (from groupmate's version)
+# -------------------------------------------------
 def _logo_path() -> str:
     """Absolute path to the MMU logo used in PDF exports."""
     return os.path.join(app.root_path, "static", "img", "mmu_logo.png")
@@ -270,7 +270,7 @@ def user_register():
 @app.route("/login", methods=["GET", "POST"])
 def user_login():
     if current_user.is_authenticated:
-        return redirect(url_for("user_dashboard"))
+        return redirect(url_for("profile", user_id=current_user.id))  # CHANGED: redirect to profile
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -283,7 +283,7 @@ def user_login():
 
         login_user(user)
         flash("Logged in successfully.", "success")
-        return redirect(url_for("user_dashboard"))
+        return redirect(url_for("profile", user_id=user.id))  # CHANGED: redirect to profile
 
     return render_template("user/user_login.html")
 
@@ -375,8 +375,33 @@ def posts_feed():
 def post_view(post_id):
     post = Post.query.get_or_404(post_id)
     recipe = get_recipe_cached(post.spoonacular_id)
+    
+    # ADDED: Convert price to MYR for post view (was missing before)
+    price_formatted = None
+    total_price_formatted = None
+    servings = 1
+    
+    if recipe:
+        price_per_serving = recipe.get('pricePerServing')
+        servings = recipe.get('servings', 1)
+        
+        if price_per_serving:
+            price_myr = convert_to_myr(price_per_serving)
+            total_price_myr = price_myr * servings
+            
+            price_formatted = f"RM {price_myr:.2f}"
+            total_price_formatted = f"RM {total_price_myr:.2f}"
+    
     # Pass Comment model to template
-    return render_template('post_view.html', post=post, recipe=recipe, Comment=Comment)
+    return render_template(
+        'post_view.html', 
+        post=post, 
+        recipe=recipe, 
+        Comment=Comment,
+        price_per_serving=price_formatted,
+        total_price=total_price_formatted,
+        servings=servings
+    )
 
 @app.route('/profile/<int:user_id>') 
 def profile(user_id):
@@ -535,7 +560,7 @@ def remove_from_shopping_list(item_id: int):
     return redirect(url_for("shopping_list"))
 
 # -------------------------------------------------
-# ADDED: Manual Shopping List Routes - Fully merged and debugged by Week 11
+# ADDED: Manual Shopping List Routes (from groupmate's version)
 # -------------------------------------------------
 @app.route("/shopping-list/manual/add", methods=["POST"])
 @login_required
@@ -594,12 +619,12 @@ def shopping_list_pdf():
         flash('Your shopping list is empty!', 'info')
         return redirect(url_for('shopping_list'))
     
-    # MODIFIED: Use A4 page size and canvas 
+    # MODIFIED: Use A4 page size and canvas (from groupmate's version for better logo support)
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # ADDED: Use improved header function with logo 
+    # ADDED: Use improved header function with logo (from groupmate's version)
     y = _draw_pdf_header(pdf, width, height, getattr(current_user, "username", None))
     
     # Recipe-based shopping list items
@@ -720,6 +745,7 @@ def admin_dashboard():
 
 # Admin - user deletion feature; fully debugged in Week 8; during small admin HTML page rework - Siti
 # EDIT - WEEK 11: Salman fully debugged + reworked the code for this entire part below
+# FIXED: Prevent IntegrityError by deleting related data first
 @app.route("/admin/users/<int:user_id>/delete", methods=["POST"])
 @login_required
 @admin_required
@@ -735,8 +761,29 @@ def admin_delete_user(user_id: int):
     # Log the deletion (you could store this in a separate table)
     print(f"[ADMIN DELETE] User '{user.username}' deleted by {current_user.username}. Reason: {reason}")
     
+    # Delete all related data BEFORE deleting the user to prevent IntegrityError
+    # Delete user's collections 
+    Collection.query.filter_by(user_id=user_id).delete()
+    
+    # Delete user's saved recipes (if any remain)
+    SavedRecipe.query.filter_by(user_id=user_id).delete()
+    
+    # Delete user's shopping lists
+    ShoppingList.query.filter_by(user_id=user_id).delete()
+    
+    # Delete user's manual shopping items
+    ManualShoppingItem.query.filter_by(user_id=user_id).delete()
+    
+    # Delete user's posts
+    Post.query.filter_by(user_id=user_id).delete()
+    
+    # Delete user's comments
+    Comment.query.filter_by(user_id=user_id).delete()
+    
+    # Now delete the user itself
     db.session.delete(user)
     db.session.commit()
+    
     flash(f"User '{user.username}' has been deleted. Reason: {reason}", "success")
     return redirect(url_for('admin_dashboard'))
 
@@ -796,6 +843,7 @@ def user_dashboard():
     ).all()
     return render_template("user/userdashboard.html", collections=collections)
 
+# Collections route - Siti
 @app.route("/collections/create", methods=["POST"])
 @login_required
 def create_collection():
@@ -835,6 +883,7 @@ def view_collection(collection_id):
     recipes = collection.recipes.order_by(SavedRecipe.saved_at.desc()).all()
     return render_template("user/collection_view.html", collection=collection, recipes=recipes)
 
+# Collection authentication - added in Week 9 rework - Siti
 @app.route("/collections/<int:collection_id>/edit", methods=["POST"])
 @login_required
 def edit_collection(collection_id):
@@ -844,9 +893,8 @@ def edit_collection(collection_id):
         flash("You cannot edit another user's collection.", "danger")
         return redirect(url_for("user_dashboard"))
     
-    if collection.is_default:
-        flash("Cannot edit the default collection.", "warning")
-        return redirect(url_for("user_dashboard"))
+    # CHANGED: Allow editing default collection's name/description
+    # (Removed the is_default check so users can customize "My Recipes")
     
     name = request.form.get("name", "").strip()
     description = request.form.get("description", "").strip()
@@ -863,6 +911,7 @@ def edit_collection(collection_id):
     return redirect(url_for("user_dashboard"))
 
 # Collection deletion route - finished by Week 5 - Siti
+# FIXED: Properly move recipes to default collection before deletion
 @app.route("/collections/<int:collection_id>/delete", methods=["POST"])
 @login_required
 def delete_collection(collection_id):
@@ -872,18 +921,23 @@ def delete_collection(collection_id):
         flash("You cannot delete another user's collection.", "danger")
         return redirect(url_for("user_dashboard"))
     
-    if collection.is_default:
-        flash("Cannot delete the default collection.", "warning")
-        return redirect(url_for("user_dashboard"))
     
+    # FIXED: Properly move recipes to default collection
     default_collection = ensure_default_collection(current_user.id)
-    for recipe in collection.recipes.all():
+    
+    # Move all recipes from this collection to the default collection
+    recipes_to_move = SavedRecipe.query.filter_by(collection_id=collection_id).all()
+    for recipe in recipes_to_move:
         recipe.collection_id = default_collection.id
     
+    # Commit the recipe moves first
+    db.session.commit()
+    
+    # Now delete the empty collection
     db.session.delete(collection)
     db.session.commit()
     
-    flash(f"Collection '{collection.name}' deleted. Recipes moved to 'My Recipes'.", "info")
+    flash(f"Collection '{collection.name}' deleted. {len(recipes_to_move)} recipe(s) moved to 'My Recipes'.", "info")
     return redirect(url_for("user_dashboard"))
 
 # MOVED SAVING FEATURE HERE DURING DEBUGGING + Reworked in Week 9 - Siti
@@ -919,7 +973,7 @@ def save_recipe(recipe_id: int):
     flash("Recipe saved to your collection!", "success")
     return redirect(url_for("recipe_detail", recipe_id=recipe_id))
 
-# WEEK 9 - Further rework on Dashboard feature - Siti
+# WEEK 9 - Salman helped write this part for Collection Rework 
 @app.route("/recipes/<int:saved_recipe_id>/move", methods=["POST"])
 @login_required
 def move_recipe(saved_recipe_id):
@@ -945,6 +999,123 @@ def move_recipe(saved_recipe_id):
     
     flash(f"Recipe moved to '{new_collection.name}'!", "success")
     return redirect(request.referrer or url_for("user_dashboard"))
+
+# New save_and_create route for JS in recipedetail.html - Siti 
+@app.route("/collections/create-and-save", methods=["POST"])
+@login_required
+def create_collection_and_save_recipe():
+    """
+    Combined route: Creates a new collection AND saves a recipe to it in one request.
+    This is what the modal JavaScript is trying to call.
+    
+    Expected JSON payload:
+    {
+        "name": "Collection Name",
+        "description": "Optional description",
+        "recipe_id": 123,
+        "recipe_name": "Recipe Title",
+        "recipe_image": "http://..."
+    }
+    """
+    try:
+        # Get JSON data from the request
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': 'No data provided'
+            }), 400
+        
+        # Extract and validate collection data
+        collection_name = (data.get('name') or '').strip()
+        collection_description = (data.get('description') or '').strip()
+        
+        if not collection_name:
+            return jsonify({
+                'success': False,
+                'message': 'Collection name is required'
+            }), 400
+        
+        if len(collection_name) > 100:
+            return jsonify({
+                'success': False,
+                'message': 'Collection name is too long (max 100 characters)'
+            }), 400
+        
+        # Extract recipe data
+        recipe_id = data.get('recipe_id')
+        recipe_name = (data.get('recipe_name') or 'Recipe').strip()
+        recipe_image = (data.get('recipe_image') or '').strip()
+        
+        if not recipe_id:
+            return jsonify({
+                'success': False,
+                'message': 'Recipe ID is required'
+            }), 400
+        
+        try:
+            recipe_id = int(recipe_id)
+        except (TypeError, ValueError):
+            return jsonify({
+                'success': False,
+                'message': 'Invalid recipe ID'
+            }), 400
+        
+        # Check if recipe is already saved
+        existing_recipe = SavedRecipe.query.filter_by(
+            user_id=current_user.id,
+            recipe_id=recipe_id
+        ).first()
+        
+        if existing_recipe:
+            return jsonify({
+                'success': False,
+                'message': 'This recipe is already in your saved list'
+            }), 400
+        
+        # STEP 1: Create the new collection
+        new_collection = Collection(
+            user_id=current_user.id,
+            name=collection_name,
+            description=collection_description if collection_description else None,
+            is_default=False
+        )
+        
+        db.session.add(new_collection)
+        db.session.flush()  # Get the collection ID without committing yet
+        
+        # STEP 2: Save the recipe to the new collection
+        saved_recipe = SavedRecipe(
+            user_id=current_user.id,
+            recipe_id=recipe_id,
+            recipe_name=recipe_name,
+            recipe_image=recipe_image,
+            collection_id=new_collection.id
+        )
+        
+        db.session.add(saved_recipe)
+        
+        # STEP 3: Commit both operations together
+        db.session.commit()
+        
+        # Success!
+        return jsonify({
+            'success': True,
+            'message': f'Collection "{collection_name}" created and recipe saved!',
+            'collection_id': new_collection.id,
+            'collection_name': collection_name
+        }), 201
+        
+    except Exception as e:
+        # Rollback on error
+        db.session.rollback()
+        print(f"[ERROR] create_collection_and_save_recipe: {str(e)}")
+        
+        return jsonify({
+            'success': False,
+            'message': 'An error occurred. Please try again.'
+        }), 500
 
 
 # WEEK 6 - 7 : Salman fully wrote and debugged Chatbot route ; merged by the end of Week 7
@@ -979,7 +1150,7 @@ Just tell me what you're looking for!'''
         # Patterns: "find recipes with X", "recipes with X", "cook with X", "use X"
         if any(phrase in user_message for phrase in ['find recipes with', 'recipes with', 'cook with', 'use ', 'have ']):
             # Extract ingredients after the trigger phrase
-            # This is a simple extraction - just takes everything after the trigger
+            # This is a simple extraction - just takes everything after the trigger 
             ingredients = user_message
             for phrase in ['find recipes with', 'recipes with', 'cook with', 'i have', 'use']:
                 if phrase in ingredients:

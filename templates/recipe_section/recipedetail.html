@@ -285,10 +285,8 @@
   </div>
 </div>
 
-<!-- 
-  JAVASCRIPT FOR MODAL HANDLING
-  This script handles the modal interactions and AJAX submission
--->
+<!--  JAVASCRIPT FOR MODAL HANDLING
+ handles the modal interactions and AJAX submission -->
 <script>
 // Wait for the DOM to be fully loaded before running this code
 // This ensures all HTML elements exist before we try to access them
@@ -343,7 +341,6 @@ document.addEventListener('DOMContentLoaded', function() {
   
   /**
    * Main function: Handle the "Create & Save Recipe" button click
-   * This is where the AJAX magic happens!
    */
   saveBtn.addEventListener('click', async function() {
     // Validate the form using HTML5 validation
@@ -355,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Disable the button to prevent double-submission
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
-    // The spinner gives visual feedback that something is happening
+    
     
     hideMessage();  // Clear any previous messages
     
@@ -383,7 +380,6 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Check if the request was successful
       if (response.ok && data.success) {
-        // SUCCESS! Show success message
         showMessage(data.message, 'success');
         
         // Wait 1.5 seconds so user can see the success message
@@ -396,7 +392,6 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         // FAILURE - Show error message from server
         showMessage(data.message || 'Failed to create collection. Please try again.', 'danger');
-        // Re-enable the button so user can try again
         saveBtn.disabled = false;
         saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Create & Save Recipe';
       }
@@ -405,7 +400,6 @@ document.addEventListener('DOMContentLoaded', function() {
       // NETWORK ERROR - Fetch failed (no internet, server down, etc.)
       console.error('Error:', error);
       showMessage('Network error. Please check your connection and try again.', 'danger');
-      // Re-enable the button
       saveBtn.disabled = false;
       saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Create & Save Recipe';
     }
