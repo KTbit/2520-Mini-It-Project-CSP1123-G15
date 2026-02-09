@@ -47,7 +47,7 @@
     </div>
     
     <!-- User's Posts -->
-    <h4><i class="bi bi-file-post"></i> {{ user.username }}'s Posts</h4>
+    <h4><i class="bi bi-file-post"></i> {{ user.username }}'s Shared Recipes</h4>
     {% if posts %}
         <div class="row">
             {% for post in posts %}
@@ -62,7 +62,7 @@
                             {{ post.created_at.strftime('%B %d, %Y') if post.created_at else '' }}
                         </p>
                         <a href="{{ url_for('post_view', post_id=post.id) }}" class="btn btn-sm btn-primary">
-                            View Post
+                            View Recipe
                         </a>
                         
                         {% if current_user.is_authenticated and (current_user.id == post.user_id or current_user.is_admin) %}
@@ -79,10 +79,28 @@
             {% endfor %}
         </div>
     {% else %}
-        <p class="text-muted">{{ user.username }} hasn't posted anything yet.</p>
+        <p class="text-muted">{{ user.username }} hasn't shared any recipes yet.</p>
+    {% endif %}
+    
+    <!-- Collections Section -->
+    {% if collections %}
+    <div class="mt-4">
+      <h4><i class="bi bi-collection"></i> {{user.username}}'s Collections</h4>
+      <div class="row g-3 mt-2">
+        {% for collection in collections %}
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h6>{{ collection.name }}
+                {% if collection.is_default %}<span class="badge bg-primary">Default</span>{% endif %}
+              </h6>
+              <small class="text-muted"><i class="bi bi-bookmark-fill"></i> {{ collection.recipes.count() }} recipes</small>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
     {% endif %}
 </div>
 {% endblock %}
-
-
-<!--week 5 user profile feature addition-->

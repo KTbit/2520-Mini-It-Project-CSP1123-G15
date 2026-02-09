@@ -12,15 +12,14 @@
   </button>
 </div>
 
-<!-- Collections feature added by Siti in Week 7, finished in Week 10-->
 <!-- Collections grid -->
 {% if collections %}
 <div class="row g-4">
   {% for collection in collections %}
   <div class="col-md-6 col-lg-4">
-    <a href="{{ url_for('view_collection', collection_id=collection.id) }}" class="text-decoration-none">
       <div class="card h-100 shadow-sm hover-card">
-        <!-- Collection preview (show first 4 recipe images) -->
+        <!-- Collection preview -->
+        <a href="{{ url_for('view_collection', collection_id=collection.id) }}" class="text-decoration-none">
         <div class="collection-preview">
           {% set preview_recipes = collection.recipes.limit(4).all() %}
           {% if preview_recipes %}
@@ -64,67 +63,65 @@
             </small>
           </p>
         </div>
+        </a>
 
-        <!-- Collection actions -->
-        <div class="card-footer bg-white border-top-0">
-          <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-outline-primary flex-grow-1"
-                    onclick="event.preventDefault(); window.location.href='{{ url_for('view_collection', collection_id=collection.id) }}'"> <!--possible faux error?-->
-              <i class="bi bi-eye"></i> View
-            </button>
-            {% if not collection.is_default %}
-            <button class="btn btn-sm btn-outline-secondary"
-                    data-bs-toggle="modal"
-                    data-bs-target="#editCollectionModal{{ collection.id }}"
-                    onclick="event.preventDefault();">
-              <i class="bi bi-pencil"></i>
-            </button>
-            <form method="post" 
-                  action="{{ url_for('delete_collection', collection_id=collection.id) }}"
-                  onsubmit="return confirm('Delete this collection? Recipes will be moved to \'My Recipes\'.');"
-                  class="d-inline"
-                  onclick="event.preventDefault(); this.closest('form').onsubmit() && this.closest('form').submit();">
-              <button type="submit" class="btn btn-sm btn-outline-danger">
-                <i class="bi bi-trash"></i>
-              </button>
-            </form>
-            {% endif %}
-          </div>
-        </div>
-      </div>
+       <!-- Collection actions -->
+<div class="card-footer bg-white border-top-0">
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('view_collection', collection_id=collection.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
+      <i class="bi bi-eye"></i> View
     </a>
-
-    <!-- Edit Collection Modal -->
+    
+    <button class="btn btn-sm btn-outline-secondary"
+            data-bs-toggle="modal"
+            data-bs-target="#editCollectionModal{{ collection.id }}">
+      <i class="bi bi-pencil"></i>
+    </button>
+    
     {% if not collection.is_default %}
-    <div class="modal fade" id="editCollectionModal{{ collection.id }}" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Edit Collection</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <form method="post" action="{{ url_for('edit_collection', collection_id=collection.id) }}">
-            <div class="modal-body">
-              <div class="mb-3">
-                <label class="form-label">Collection Name</label>
-                <input type="text" name="name" class="form-control" 
-                       value="{{ collection.name }}" required maxlength="100">
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Description (optional)</label>
-                <textarea name="description" class="form-control" rows="3" 
-                          maxlength="500">{{ collection.description or '' }}</textarea>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-              <button type="submit" class="btn btn-primary">Save Changes</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+    <form method="post" 
+          action="{{ url_for('delete_collection', collection_id=collection.id) }}"
+          onsubmit="return confirm('Delete this collection? Recipes will be moved to My Recipes.');"
+          class="d-inline">
+      <button type="submit" class="btn btn-sm btn-outline-danger">
+        <i class="bi bi-trash"></i>
+      </button>
+    </form>
     {% endif %}
+  </div>
+</div>
+      </div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editCollectionModal{{ collection.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Collection</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('edit_collection', collection_id=collection.id) }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Collection Name</label>
+            <input type="text" name="name" class="form-control" 
+                   value="{{ collection.name }}" required maxlength="100">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description (optional)</label>
+            <textarea name="description" class="form-control" rows="3" 
+                      maxlength="500">{{ collection.description or '' }}</textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
   </div>
   {% endfor %}
 </div>
@@ -144,9 +141,7 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">
-          <i class="bi bi-plus-circle"></i> New Collection
-        </h5>
+        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> New Collection</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form method="post" action="{{ url_for('create_collection') }}">
@@ -154,13 +149,13 @@
           <div class="mb-3">
             <label class="form-label">Collection Name *</label>
             <input type="text" name="name" class="form-control" 
-                   placeholder="e.g. Quick Dinners, Desserts, Meal Prep"
+                   placeholder="e.g. Quick Dinners, Desserts"
                    required maxlength="100">
           </div>
           <div class="mb-3">
             <label class="form-label">Description (optional)</label>
             <textarea name="description" class="form-control" rows="3" 
-                      placeholder="What kind of recipes will you save here?"
+                      placeholder="What kind of recipes?"
                       maxlength="500"></textarea>
           </div>
         </div>
@@ -179,21 +174,18 @@
 .hover-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-
 .hover-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
 }
-
 .collection-preview {
   height: 240px;
   overflow: hidden;
   background-color: #f8f9fa;
 }
-
 .empty-collection-preview {
   height: 240px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #d58a3e 0%);
 }
 </style>
 {% endblock %}

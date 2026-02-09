@@ -14,7 +14,6 @@
           Ready in {{ recipe.readyInMinutes }} minutes · Serves {{ recipe.servings }}
         </p>
         
-        <!-- FIXED PRICING SECTION -->
         {% if price_per_serving %}
         <div class="card mb-4 border-success">
           <div class="card-header bg-success text-white">
@@ -174,7 +173,7 @@
   <!-- 
   CREATE COLLECTION MODAL
   This is a Bootstrap modal dialog that appears when the user wants to create a new collection
-  while saving a recipe. It allows them to create the collection without leaving the page.
+  while saving a recipe.
 -->
 <div class="modal fade" id="createCollectionModal" tabindex="-1" aria-labelledby="createCollectionModalLabel" aria-hidden="true">
   <!-- 

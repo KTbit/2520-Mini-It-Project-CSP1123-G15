@@ -412,7 +412,22 @@ def profile(user_id):
     if current_user.is_authenticated:
         is_following = current_user.followed.filter_by(id=user_id).first() is not None
     
-    return render_template('user/profile.html', user=user, posts=posts, is_following=is_following)
+    # Only show if viewing own profile
+    collections = []
+    if current_user.is_authenticated and current_user.id == user_id:
+        # Viewing own profile - show all collections
+        collections = Collection.query.filter_by(user_id=user_id).order_by(
+            Collection.is_default.desc(), 
+            Collection.created_at.desc()
+        ).all()
+    
+    return render_template(
+        'user/profile.html', 
+        user=user, 
+        posts=posts, 
+        is_following=is_following,
+        collections=collections  # ADDED
+    )
 
 @app.route('/follow/<int:user_id>', methods=['POST'])
 @login_required

@@ -3,7 +3,7 @@ import os
 class Config:
     """Application configuration."""
     SECRET_KEY = os.environ.get("SECRET_KEY", "DEVONLY")
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///recipes.db")
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", 'sqlite:///recipes_new.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     SPOONACULAR_API_KEY = "3d0d6476751b4895b48d0ccb60a7d763"
